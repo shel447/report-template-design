@@ -1,0 +1,194 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "report-template",
+  "title": "ReportTemplate",
+  "description": "智能报告系统模板定义 Schema",
+  "type": "object",
+  "required": ["id", "type", "scene", "name", "parameters", "sections"],
+  "additionalProperties": false,
+  "properties": {
+
+    "id": {
+      "type": "string",
+      "description": "模板唯一标识符",
+      "pattern": "^[a-z0-9_]+$"
+    },
+
+    "type": {
+      "type": "string",
+      "description": "报告类型，如：设备健康评估、设备运行状态"
+    },
+
+    "scene": {
+      "type": "string",
+      "description": "场景细分，如：总部、分部"
+    },
+
+    "name": {
+      "type": "string",
+      "description": "模板展示名称"
+    },
+
+    "parameters": {
+      "type": "array",
+      "description": "模板参数定义列表",
+      "items": { "$ref": "#/$defs/Parameter" }
+    },
+
+    "sections": {
+      "type": "array",
+      "description": "报告章节树（顶层）",
+      "items": { "$ref": "#/$defs/Section" }
+    }
+  },
+
+  "$defs": {
+
+    "Parameter": {
+      "type": "object",
+      "required": ["id", "label", "required", "input_type"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "参数唯一标识，在内容中以 {param_id} 引用"
+        },
+        "label": {
+          "type": "string",
+          "description": "用户可读的参数名"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "是否为必填参数"
+        },
+        "input_type": {
+          "type": "string",
+          "enum": ["free_text", "enum", "dynamic"],
+          "description": "输入方式"
+        },
+        "multi": {
+          "type": "boolean",
+          "default": false,
+          "description": "是否允许多值选择，true 时可作为 foreach 来源"
+        },
+        "options": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "枚举选项，仅 input_type=enum 时有效"
+        },
+        "source": {
+          "type": "string",
+          "description": "动态选项来源，仅 input_type=dynamic 时有效，如 api:/devices/list"
+        }
+      }
+    },
+
+    "Section": {
+      "type": "object",
+      "required": ["title"],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "章节标题，支持 {param} 和 {$var} 占位符"
+        },
+        "foreach": {
+          "$ref": "#/$defs/Foreach",
+          "description": "循环展开声明，绑定多值参数"
+        },
+        "content": {
+          "$ref": "#/$defs/Content",
+          "description": "叶节点内容，与 subsections 互斥"
+        },
+        "subsections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Section" },
+          "description": "子章节，与 content 互斥"
+        }
+      }
+    },
+
+    "Foreach": {
+      "type": "object",
+      "required": ["param", "as"],
+      "additionalProperties": false,
+      "properties": {
+        "param": {
+          "type": "string",
+          "description": "绑定的多值参数 id，需对应 parameters 中 multi:true 的条目"
+        },
+        "as": {
+          "type": "string",
+          "description": "迭代变量名，内容中以 {$varname} 引用"
+        }
+      }
+    },
+
+    "Content": {
+      "type": "object",
+      "description": "内容节点：数据来源 × 呈现形式",
+      "required": ["presentation"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "$ref": "#/$defs/Source" },
+        "presentation": { "$ref": "#/$defs/Presentation" }
+      }
+    },
+
+    "Source": {
+      "type": "object",
+      "required": ["kind"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["sql", "nl2sql"],
+          "description": "数据获取方式"
+        },
+        "query": {
+          "type": "string",
+          "description": "SQL 语句，支持 {param} 和 {$var} 占位符，仅 kind=sql 时使用"
+        },
+        "description": {
+          "type": "string",
+          "description": "自然语言描述，支持 {param} 和 {$var} 占位符，仅 kind=nl2sql 时使用"
+        }
+      }
+    },
+
+    "Presentation": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["text", "value", "chart", "simple_table", "composite_table"],
+          "description": "呈现类型"
+        },
+        "template": {
+          "type": "string",
+          "description": "静态文本模板，仅 type=text 时使用，支持 {param} 占位符"
+        },
+        "anchor": {
+          "type": "string",
+          "description": "单值锚点文本，仅 type=value 时使用，含 {$value} 占位符"
+        },
+        "chart_type": {
+          "type": "string",
+          "enum": ["bar", "line", "pie", "area", "scatter"],
+          "description": "图形类型，仅 type=chart 时使用"
+        },
+        "headers": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "description": "复合表头二维数组，仅 type=composite_table 时使用，空字符串表示合并单元格占位"
+        }
+      }
+    }
+
+  }
+}

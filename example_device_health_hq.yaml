@@ -1,0 +1,180 @@
+# 总部设备健康评估报告模板
+# 对应 schema: template.schema.json
+
+id: device_health_hq
+type: 设备健康评估
+scene: 总部
+name: 总部设备健康评估报告
+
+# ─────────────────────────────
+# 参数定义
+# ─────────────────────────────
+parameters:
+  - id: time_range
+    label: 统计周期
+    required: true
+    input_type: enum
+    multi: false
+    options:
+      - 近7天
+      - 近30天
+      - 近90天
+
+  - id: time_range_start
+    label: 统计开始日期（系统根据 time_range 自动计算）
+    required: true
+    input_type: free_text
+
+  - id: device_ids
+    label: 设备编号
+    required: true
+    input_type: dynamic
+    multi: true                         # 多值，可作为 foreach 来源
+    source: api:/devices/list
+
+  - id: report_author
+    label: 报告撰写人
+    required: false
+    input_type: free_text
+
+# ─────────────────────────────
+# 报告章节定义
+# ─────────────────────────────
+sections:
+
+  # ── 第一章：概述（纯静态文本）
+  - title: 概述
+    content:
+      presentation:
+        type: text
+        template: |
+          本报告由 {report_author} 编制，统计周期为 {time_range}，
+          共纳入设备 {device_ids} 进行健康状况综合评估。
+
+  # ── 第二章：整体指标（sql → value & sql → simple_table）
+  - title: 整体运行指标
+    subsections:
+
+      - title: 综合在线率
+        content:
+          source:
+            kind: sql
+            query: >
+              SELECT ROUND(AVG(online_rate) * 100, 1)
+              FROM device_stats
+              WHERE device_id IN ({device_ids})
+                AND stat_date >= '{time_range_start}'
+          presentation:
+            type: value
+            anchor: "统计周期内，所纳入设备的综合平均在线率为 {$value}%。"
+
+      - title: 故障事件明细
+        content:
+          source:
+            kind: sql
+            query: >
+              SELECT event_time    AS 故障时间,
+                     device_id     AS 设备编号,
+                     fault_type    AS 故障类型,
+                     duration_min  AS 持续时长（分钟）
+              FROM fault_events
+              WHERE device_id IN ({device_ids})
+                AND event_time >= '{time_range_start}'
+              ORDER BY event_time DESC
+          presentation:
+            type: simple_table
+
+      - title: 设备健康评分矩阵
+        content:
+          source:
+            kind: sql
+            query: >
+              SELECT device_id      AS 设备编号,
+                     online_rate    AS 在线率,
+                     fault_count    AS 故障次数,
+                     mttr_min       AS MTTR（分钟）,
+                     health_score   AS 健康评分
+              FROM device_stats
+              WHERE device_id IN ({device_ids})
+                AND stat_date >= '{time_range_start}'
+          presentation:
+            type: composite_table
+            headers:
+              - ["设备编号", "可用性指标",  "可用性指标",   "维护性指标",    "综合"]
+              - ["",          "在线率",      "故障次数",     "MTTR（分钟）", "健康评分"]
+
+  # ── 第三章：各设备详细分析（foreach 循环展开）
+  - title: 各设备详细分析
+    foreach:
+      param: device_ids             # 按 device_ids 的每个值展开
+      as: device                    # 迭代变量，内容中用 {$device} 引用
+    subsections:
+
+      - title: "设备 {$device} 运行概况"
+        content:
+          presentation:
+            type: text
+            template: "以下为设备 {$device} 在 {time_range} 内的详细健康分析。"
+
+      - title: "设备 {$device} 在线率"
+        content:
+          source:
+            kind: sql
+            query: >
+              SELECT ROUND(online_rate * 100, 1)
+              FROM device_stats
+              WHERE device_id = '{$device}'
+                AND stat_date >= '{time_range_start}'
+          presentation:
+            type: value
+            anchor: "设备 {$device} 在统计周期内的在线率为 {$value}%。"
+
+      - title: "设备 {$device} 故障趋势"
+        content:
+          source:
+            kind: nl2sql
+            description: >
+              统计设备 {$device} 在 {time_range} 内每日故障次数，
+              按故障类型（电气故障、机械故障、网络故障）分类汇总，
+              展示时序变化趋势
+          presentation:
+            type: chart
+            chart_type: line
+
+      - title: "设备 {$device} 故障记录"
+        content:
+          source:
+            kind: sql
+            query: >
+              SELECT event_time   AS 故障时间,
+                     fault_type   AS 故障类型,
+                     duration_min AS 持续时长（分钟）,
+                     resolution   AS 处理措施
+              FROM fault_events
+              WHERE device_id = '{$device}'
+                AND event_time >= '{time_range_start}'
+              ORDER BY event_time DESC
+          presentation:
+            type: simple_table
+
+  # ── 第四章：综合趋势分析（nl2sql → chart）
+  - title: 综合趋势分析
+    content:
+      source:
+        kind: nl2sql
+        description: >
+          分析所有纳入设备 {device_ids} 在 {time_range} 内的整体故障率月度变化趋势，
+          对比展示各设备的健康评分走势
+      presentation:
+        type: chart
+        chart_type: line
+
+  # ── 第五章：结论（纯静态文本）
+  - title: 结论与建议
+    content:
+      presentation:
+        type: text
+        template: |
+          综合以上分析，{time_range} 统计周期内，总部纳管设备整体运行状况
+          已在上述章节中量化呈现。建议针对健康评分偏低的设备制定专项维护计划。
+          本报告由 {report_author} 编制。
