@@ -1,0 +1,93 @@
+# 示例 3：动态 KV 属性面板
+# 适用场景：设备的自定义属性数量不固定，由数据库返回，
+#           不需要在模板里列举每个字段名——用 key_col/value_col 动态展开
+# 结构：kv_grid（动态 KV 对）+ kv_grid（SQL动态KV对）+ tabular
+
+content:
+  presentation:
+    type: composite_table
+    columns: 8
+
+    sections:
+
+      # ── 区段一：固定元信息（模板写死字段）
+      - band: "设备标识"
+        layout:
+          type: kv_grid
+          cols_per_row: 2
+          key_span: 1
+          value_span: 3
+        fields:
+          - key: "设备编号"
+            value: "{$device}"
+          - key: "报告周期"
+            value: "{time_range}"
+
+      # ── 区段二：动态属性（数据库返回任意多个属性名-属性值）
+      - band: "设备档案"
+        layout:
+          type: kv_grid
+          cols_per_row: 2
+          key_span: 1
+          value_span: 3
+        source:
+          kind: sql
+          query: >
+            SELECT attr_name, attr_value
+            FROM device_attributes
+            WHERE device_id = '{$device}'
+            ORDER BY display_order
+          key_col: "attr_name"     # SQL 行的这列作为 KV 的 key
+          value_col: "attr_value"  # SQL 行的这列作为 KV 的 value
+
+      # ── 区段三：运行记录（多行 tabular）
+      - band: "近期运行记录"
+        layout:
+          type: tabular
+          headers:
+            - label: "日期"
+              span: 2
+            - label: "运行时长(h)"
+              span: 2
+            - label: "告警次数"
+              span: 2
+            - label: "备注"
+              span: 2
+          columns:
+            - field: "run_date"
+              span: 2
+            - field: "run_hours"
+              span: 2
+            - field: "alarm_count"
+              span: 2
+            - field: "remark"
+              span: 2
+        source:
+          kind: sql
+          query: >
+            SELECT run_date, run_hours, alarm_count, remark
+            FROM device_daily_log
+            WHERE device_id = '{$device}'
+              AND run_date >= '{time_range_start}'
+            ORDER BY run_date DESC
+            LIMIT 10
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 渲染效果示意（key_col/value_col 动态展开）：
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# +══════════════════ 设备标识 ═══════════════════+
+# |  设备编号  |  KD-PUMP-204A  |  报告周期  |  近30天  |
+# +══════════════════ 设备档案 ═══════════════════+
+# |  设备名称  |  三级循环水泵P-204A  |  型号  |  XW-500  |
+# |  制造商    |  凯文机械         |  额定功率  |  55 kW  |
+# |  安装位置  |  循环水泵站-A      |  投运时间  |  2022-05-18  |
+# |  维保责任人|  张工             |  下次保养  |  2026-06-01  |
+#   ↑ 以上行数由数据库 device_attributes 表决定，模板不写死
+# +══════════════════ 近期运行记录 ══════════════════+
+# |    日期    |  运行时长(h)  |  告警次数  |    备注    |
+# +------------+---------------+------------+------------+
+# | 2026-03-07 |     23.5      |     3      |  振动偏高  |
+# | 2026-03-06 |     24.0      |     1      |            |
+# | 2026-03-05 |     24.0      |     0      |            |
+# +------------+---------------+------------+------------+
