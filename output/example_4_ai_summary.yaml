@@ -1,0 +1,81 @@
+# 示例 4：带 AI 专家建议的设备评估表
+# 结构：正常数据区段 + AI 总结建议区段（引用上方数据并检索知识库）
+
+content:
+  presentation:
+    type: composite_table
+    columns: 8
+
+    sections:
+
+      # ── 区段一：实时监控指标（普通数据来源）
+      - id: "realtime_metrics"
+        band: "监控指标快照"
+        layout:
+          type: tabular
+          headers:
+            - label: "测点"
+              span: 3
+            - label: "数值"
+              span: 2
+            - label: "阈值"
+              span: 1
+            - label: "状态"
+              span: 2
+          columns:
+            - field: "sensor_name"
+              span: 3
+            - field: "val"
+              span: 2
+            - field: "limit"
+              span: 1
+            - field: "status_tag"
+              span: 2
+        source:
+          kind: sql
+          query: >
+            SELECT sensor_name, val, limit_val as limit, 
+                   CASE WHEN val > limit_val THEN '异常' ELSE '正常' END as status_tag
+            FROM monitor_data WHERE device_id = '{$device}'
+
+      # ── 区段二：AI 总结建议（引用区段一的数据，并结合知识检索）
+      - id: "expert_advice"
+        band: "AI 专家评估与检修建议"
+        layout:
+          type: kv_grid
+          cols_per_row: 1
+          key_span: 2
+          value_span: 6
+        source:
+          kind: ai_synthesis
+          context:
+            refs: 
+              - "realtime_metrics"      # 引用监控指标数据
+            queries:
+              - id: "fault_history"
+                query: "SELECT fault_code, description FROM fault_logs WHERE device_id = '{$device}' LIMIT 5"
+          knowledge:
+            query_template: "针对设备型号 {model} 的 {symptoms} 情况，提供诊断意见"
+            params:
+              subject: "{device_model}"  # 来自全局参数
+              symptoms: "refs.realtime_metrics[status_tag='异常'].sensor_name" # 提取异常测点名
+              objective: "对比行业标准给出故障等级和维修指导"
+          prompt: |
+            你是一位资深工业设备专家。根据以下信息给出评估：
+            1. 实时指标 (refs.realtime_metrics): 包括测点值及状态。
+            2. 故障历史 (context.queries.fault_history): 该设备近期的报错频次。
+            3. 知识库背景 (knowledge.result): 行业同类故障的处理规范。
+            请在 150 字内给出针对性的健康评价及具体的检修步骤建议。
+        fields:
+          - key: "评估建议"
+            col: "output"  # AI 生成的结果映射到内容列
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 填充逻辑演示（运行时步序）：
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 1. 执行 realtime_metrics 的 SQL，渲染表格前半部分。
+# 2. 准备 AI 上下文：获取 realtime_metrics 渲染后的 JSON 快照。
+# 3. 执行补充查询 fault_history。
+# 4. 构造知识库请求：subject="KD-PUMP-204A", symptoms="振动幅度", objective="..."。
+# 5. 调用知识检索接口，获取返回文本。
+# 6. 拼装 Prompt，调用 LLM，生成最终文本填入「评估建议」单元格。

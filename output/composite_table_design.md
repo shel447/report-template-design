@@ -102,32 +102,66 @@ layout:
     - field: "note"
       span: 3
 source:
-  kind: sql | nl2sql
+  kind: sql | nl2sql | ai_synthesis
   query: "..."              # sql 时写 query
   description: "..."        # nl2sql 时写自然语言描述
 ```
 
 ---
 
-## 四、完整字段结构
+## 四、ai_synthesis 布局（新）
+
+用于生成总结性、专家建议类内容。它不直接对应数据库字段，而是通过 AI 合成。
+
+### 4.1 核心结构
+
+```yaml
+source:
+  kind: ai_synthesis
+  context:
+    refs: ["section_id.field_id", ...]  # 引用报告内已有的数据节
+    queries:                            # 额外的补充 SQL 查询
+      - id: "history_alarm"
+        query: "SELECT ..."
+  knowledge:
+    query_template: "针对 {model} 的 {symptom} 提供诊断建议"
+    params:                             # 构造检索输入的三要素
+      subject: "{device_model}"         # 主体：型号、组件
+      symptoms: "{vibration_val}"       # 征兆：指标异常、告警码
+      objective: "获取故障诊断与维修建议"  # 目标：明确意图
+  prompt: "根据以下上下文和知识库信息，给出设备 {$device} 的健康评价..."
+```
+
+### 4.2 知识检索输入逻辑
+
+为了提高 RAG（检索增强生成）的准确性，知识检索的输入建议采用「主体+征兆+目标」三段式结构：
+
+1.  **Subject (主体)**: 明确是谁出问题了。如“三级循环水泵 P-204A”、“西门子 PLC S7-1200”。
+2.  **Symptoms (征兆)**: 当前具体的异常表现。如“振动幅度超过 7.5mm/s”、“轴承温度持续升高至 95℃”。
+3.  **Objective (目标)**: 期望得到的回答类型。如“请对比行业维护标准给出预警等级”或“请提供可能的故障原因排查清单”。
+
+---
+
+## 五、完整字段结构
 
 ```yaml
 content:
   source:                      # 整表级数据来源（可被 section 级覆盖）
-    kind: sql | nl2sql
+    kind: sql | nl2sql | ai_synthesis
     query: "..."
     description: "..."
   presentation:
     type: composite_table
     columns: 8                 # 总列数
     sections:
-      - band: "区段标题"        # 可选，null 表示无标题行
+      - id: "base_info"        # 建议增加 ID，便于被 ai_synthesis 引用
+        band: "区段标题"        # 可选，null 表示无标题行
         layout:
           type: kv_grid | tabular
           # ... layout 专属字段
         source:                # 可选，覆盖整表级 source
-          kind: sql
-          query: "..."
+          kind: ai_synthesis   # 使用 AI 总结
+          # ... ai_synthesis 专属配置
         fields:                # kv_grid 专用
           - key: "..."
             value: "..." | col: "..."
@@ -135,10 +169,11 @@ content:
 
 ---
 
-## 五、约束规则
+## 六、约束规则
 
 1. `(key_span + value_span) × cols_per_row` 必须等于 `columns`（kv_grid）
 2. `tabular` 中 `headers[].span` 之和必须等于 `columns`
 3. `band` 行自动 `colspan=columns`，不需单独声明
 4. `kv_grid` 的 `fields` 若数量不能被 `cols_per_row` 整除，最后一行不足的格以空白补齐
 5. `tabular` 的 `source` 必填；`kv_grid` 的 `source` 与 `fields.value` 二选其一或混用
+6. `ai_synthesis` 引用 `refs` 时，对应的 section 必须在当前 section 之前定义，确保数据已就绪。
