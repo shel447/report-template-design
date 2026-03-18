@@ -2,39 +2,33 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "report-template",
   "title": "ReportTemplate",
-  "description": "智能报告系统模板定义 Schema",
+  "description": "智能报告系统模板定义 Schema v2.0",
   "type": "object",
   "required": ["id", "type", "scene", "name", "parameters", "sections"],
   "additionalProperties": false,
   "properties": {
-
     "id": {
       "type": "string",
       "description": "模板唯一标识符",
       "pattern": "^[a-z0-9_]+$"
     },
-
     "type": {
       "type": "string",
-      "description": "报告类型，如：设备健康评估、设备运行状态"
+      "description": "报告类型，如：设备健康评估"
     },
-
     "scene": {
       "type": "string",
       "description": "场景细分，如：总部、分部"
     },
-
     "name": {
       "type": "string",
       "description": "模板展示名称"
     },
-
     "parameters": {
       "type": "array",
       "description": "模板参数定义列表",
       "items": { "$ref": "#/$defs/Parameter" }
     },
-
     "sections": {
       "type": "array",
       "description": "报告章节树（顶层）",
@@ -78,7 +72,7 @@
         },
         "source": {
           "type": "string",
-          "description": "动态选项来源，仅 input_type=dynamic 时有效，如 api:/devices/list"
+          "description": "动态选项来源，仅 input_type=dynamic 时有效"
         }
       }
     },
@@ -90,11 +84,11 @@
       "properties": {
         "title": {
           "type": "string",
-          "description": "章节标题，支持 {param} 和 {$var} 占位符"
+          "description": "章节标题"
         },
         "foreach": {
           "$ref": "#/$defs/Foreach",
-          "description": "循环展开声明，绑定多值参数"
+          "description": "循环展开声明"
         },
         "content": {
           "$ref": "#/$defs/Content",
@@ -113,25 +107,41 @@
       "required": ["param", "as"],
       "additionalProperties": false,
       "properties": {
-        "param": {
-          "type": "string",
-          "description": "绑定的多值参数 id，需对应 parameters 中 multi:true 的条目"
-        },
-        "as": {
-          "type": "string",
-          "description": "迭代变量名，内容中以 {$varname} 引用"
-        }
+        "param": { "type": "string" },
+        "as": { "type": "string" }
       }
     },
 
     "Content": {
       "type": "object",
-      "description": "内容节点：数据来源 × 呈现形式",
+      "description": "内容节点：数据获取与视图层平级解耦 (v2.0)",
       "required": ["presentation"],
       "additionalProperties": false,
       "properties": {
-        "source": { "$ref": "#/$defs/Source" },
+        "datasets": {
+          "type": "array",
+          "description": "局部数据池，按 DAG 拓扑执行",
+          "items": { "$ref": "#/$defs/Dataset" }
+        },
         "presentation": { "$ref": "#/$defs/Presentation" }
+      }
+    },
+
+    "Dataset": {
+      "type": "object",
+      "required": ["id", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "数据集全局唯一标识"
+        },
+        "depends_on": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "前置依赖的 Dataset ID 列表"
+        },
+        "source": { "$ref": "#/$defs/Source" }
       }
     },
 
@@ -142,17 +152,48 @@
       "properties": {
         "kind": {
           "type": "string",
-          "enum": ["sql", "nl2sql"],
+          "enum": ["sql", "nl2sql", "ai_synthesis"],
           "description": "数据获取方式"
         },
-        "query": {
-          "type": "string",
-          "description": "SQL 语句，支持 {param} 和 {$var} 占位符，仅 kind=sql 时使用"
+        "query": { "type": "string" },
+        "key_col": { "type": "string" },
+        "value_col": { "type": "string" },
+        "description": { "type": "string" },
+        "context": {
+          "type": "object",
+          "properties": {
+            "refs": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "queries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["id", "query"],
+                "properties": {
+                  "id": { "type": "string" },
+                  "query": { "type": "string" }
+                }
+              }
+            }
+          }
         },
-        "description": {
-          "type": "string",
-          "description": "自然语言描述，支持 {param} 和 {$var} 占位符，仅 kind=nl2sql 时使用"
-        }
+        "knowledge": {
+          "type": "object",
+          "properties": {
+            "query_template": { "type": "string" },
+            "params": {
+              "type": "object",
+              "properties": {
+                "subject": { "type": "string" },
+                "symptoms": { "type": "string" },
+                "objective": { "type": "string" }
+              }
+            }
+          }
+        },
+        "prompt": { "type": "string" }
       }
     },
 
@@ -166,26 +207,81 @@
           "enum": ["text", "value", "chart", "simple_table", "composite_table"],
           "description": "呈现类型"
         },
-        "template": {
-          "type": "string",
-          "description": "静态文本模板，仅 type=text 时使用，支持 {param} 占位符"
-        },
-        "anchor": {
-          "type": "string",
-          "description": "单值锚点文本，仅 type=value 时使用，含 {$value} 占位符"
-        },
+        "template": { "type": "string" },
+        "anchor": { "type": "string" },
         "chart_type": {
           "type": "string",
-          "enum": ["bar", "line", "pie", "area", "scatter"],
-          "description": "图形类型，仅 type=chart 时使用"
+          "enum": ["bar", "line", "pie", "area", "scatter"]
+        },
+        "columns": { "type": "integer" },
+        "sections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/CompositeSection" }
+        }
+      }
+    },
+
+    "CompositeSection": {
+      "type": "object",
+      "required": ["layout"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string" },
+        "band": {
+          "type": ["string", "null"]
+        },
+        "dataset_id": { "type": "string" },
+        "layout": { "$ref": "#/$defs/Layout" }
+      }
+    },
+
+    "Layout": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["kv_grid", "tabular"]
+        },
+        "cols_per_row": { "type": "integer" },
+        "key_span": { "type": "integer" },
+        "value_span": { "type": "integer" },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["key"],
+            "properties": {
+              "key": { "type": "string" },
+              "value": { "type": "string" },
+              "col": { "type": "string" }
+            }
+          }
         },
         "headers": {
           "type": "array",
           "items": {
-            "type": "array",
-            "items": { "type": "string" }
-          },
-          "description": "复合表头二维数组，仅 type=composite_table 时使用，空字符串表示合并单元格占位"
+            "type": "object",
+            "required": ["label", "span"],
+            "properties": {
+              "label": { "type": "string" },
+              "span": { "type": "integer" },
+              "repeat": { "type": "boolean" }
+            }
+          }
+        },
+        "columns": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["field", "span"],
+            "properties": {
+              "field": { "type": "string" },
+              "span": { "type": "integer" },
+              "repeat": { "type": "boolean" }
+            }
+          }
         }
       }
     }
