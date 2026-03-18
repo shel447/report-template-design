@@ -1,8 +1,37 @@
-# 示例 1：设备详情卡片
+# 示例 1：设备详情卡片（datasets + presentation 平级）
 # 对应 key-device-report-sample.docx 中「关键设备详情」表格
 # 结构：kv_grid（基本信息）+ tabular（关键指标）+ kv_grid（综合结论）
 
 content:
+
+  # ── 局部数据池定义 ──────────────────────────
+  datasets:
+    - id: "ds_base_info"
+      source:
+        kind: sql
+        query: >
+          SELECT name, model, location, install_date,
+                 status, alarm_count_7d
+          FROM devices WHERE device_id = '{$device}'
+
+    - id: "ds_key_metrics"
+      source:
+        kind: sql
+        query: >
+          SELECT metric_name, current_value, judgment, note
+          FROM device_metrics
+          WHERE device_id = '{$device}'
+            AND stat_date = (SELECT MAX(stat_date) FROM device_metrics WHERE device_id = '{$device}')
+
+    - id: "ds_conclusion"
+      source:
+        kind: sql
+        query: >
+          SELECT overall_status, recommendations
+          FROM device_conclusions
+          WHERE device_id = '{$device}'
+
+  # ── 视图呈现布局 ─────────────────────────────
   presentation:
     type: composite_table
     columns: 8
@@ -15,31 +44,27 @@ content:
           type: kv_grid
           cols_per_row: 2        # 每行两对 KV，左右并排
           key_span: 1            # 标签占 1 列
-          value_span: 3          # 值占 3 列（1+3）*2 = 8 ✓
-        source:
-          kind: sql
-          query: >
-            SELECT name, model, location, install_date,
-                   status, alarm_count_7d
-            FROM devices WHERE device_id = '{$device}'
-        fields:
-          - key: "设备名称"
-            col: "name"
-          - key: "设备型号"
-            col: "model"
-          - key: "安装位置"
-            col: "location"
-          - key: "投入时间"
-            col: "install_date"
-          - key: "当前状态"
-            col: "status"
-          - key: "7天告警次数"
-            col: "alarm_count_7d"
+          value_span: 3          # 值占 3 列，(1+3)*2 = 8 ✓
+          dataset_id: "ds_base_info"
+          fields:
+            - key: "设备名称"
+              col: "name"
+            - key: "设备型号"
+              col: "model"
+            - key: "安装位置"
+              col: "location"
+            - key: "投入时间"
+              col: "install_date"
+            - key: "当前状态"
+              col: "status"
+            - key: "7天告警次数"
+              col: "alarm_count_7d"
 
       # ── 区段二：关键指标（SQL 多行 → tabular）
       - band: "关键指标"
         layout:
           type: tabular
+          dataset_id: "ds_key_metrics"
           headers:
             - label: "指标名"
               span: 2
@@ -58,29 +83,17 @@ content:
               span: 1
             - field: "note"
               span: 3
-        source:
-          kind: sql
-          query: >
-            SELECT metric_name, current_value, judgment, note
-            FROM device_metrics
-            WHERE device_id = '{$device}'
-              AND stat_date = (SELECT MAX(stat_date) FROM device_metrics WHERE device_id = '{$device}')
 
-      # ── 区段三：综合结论（参数直填 → 全宽 KV）
+      # ── 区段三：综合结论（SQL 单行 → 全宽 KV）
       - band: "综合结论"
         layout:
           type: kv_grid
           cols_per_row: 1        # 每行一对，全宽
-          key_span: 2            # 标签占 2 列
-          value_span: 6          # 值占 6 列（2+6）*1 = 8 ✓
-        source:
-          kind: sql
-          query: >
-            SELECT overall_status, recommendations
-            FROM device_conclusions
-            WHERE device_id = '{$device}'
-        fields:
-          - key: "综合判断"
-            col: "overall_status"
-          - key: "建议动作"
-            col: "recommendations"
+          key_span: 2
+          value_span: 6          # (2+6)*1 = 8 ✓
+          dataset_id: "ds_conclusion"
+          fields:
+            - key: "综合判断"
+              col: "overall_status"
+            - key: "建议动作"
+              col: "recommendations"

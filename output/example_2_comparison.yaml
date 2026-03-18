@@ -1,61 +1,63 @@
-# 示例 2：多设备横向对比矩阵
-# 结构：tabular，但列头由 SQL 动态生成（设备作为列，指标作为行）
-# 适用场景：同类设备多机对比健康状况
-
-# ── 注意：此示例展示的是「列头动态化」的变体写法 ──
-# 当 tabular 的 columns 由 SQL 返回，而非模板写死时，
-# 用 dynamic_columns 代替 columns，让引擎从 SQL 结果集的列名自动生成表头
+# 示例 2：多设备横向对比矩阵（datasets + presentation 平级）
+# 结构：kv_grid（汇总说明）+ tabular（动态列对比主表）
 
 content:
+
+  # ── 局部数据池定义 ──────────────────────────
+  datasets:
+    - id: "ds_comparison"
+      source:
+        kind: sql
+        # 使用 PIVOT 查询：行是指标，列是设备（运行时动态展开）
+        query: >
+          SELECT
+            metric_label,
+            MAX(CASE WHEN device_id='A001' THEN display_value END) AS "A001",
+            MAX(CASE WHEN device_id='A002' THEN display_value END) AS "A002",
+            MAX(CASE WHEN device_id='A003' THEN display_value END) AS "A003"
+          FROM device_metric_display
+          WHERE device_id IN ({device_ids})
+            AND stat_date >= '{time_range_start}'
+          GROUP BY metric_label
+          ORDER BY sort_order
+
+  # ── 视图呈现布局 ─────────────────────────────
   presentation:
     type: composite_table
-    columns: 7            # 1列指标名 + 6台设备（由实际数据决定，这里模板定义逻辑列数）
+    columns: 7            # 1列指标名 + 6台设备（由实际数据决定，这里定义逻辑列数）
 
     sections:
 
-      # ── 区段一：对比汇总（单行说明，无 band）
+      # ── 区段一：对比汇总（纯参数直填，无数据来源）
       - band: null          # 无标题行，直接从第一行开始
         layout:
           type: kv_grid
           cols_per_row: 1
           key_span: 2
           value_span: 5
-        fields:
-          - key: "统计周期"
-            value: "{time_range}"
-          - key: "纳管设备数"
-            value: "{device_count} 台"
+          fields:
+            - key: "统计周期"
+              value: "{time_range}"
+            - key: "纳管设备数"
+              value: "{device_count} 台"
 
       # ── 区段二：指标对比主表（动态列）
       - band: "关键指标横向对比"
         layout:
           type: tabular
+          dataset_id: "ds_comparison"
           headers:
             - label: "指标"
               span: 1
-            - label: "~dynamic~"  # 特殊标记，引擎从 pivot 列名自动展开
+            - label: "~dynamic~"  # 特殊标记，引擎从 PIVOT 列名自动展开
               span: 1
-              repeat: true         # 对每个 pivot 列重复一次
+              repeat: true         # 对每个 PIVOT 列重复一次
           columns:
             - field: "metric_label"
               span: 1
-            - field: "~dynamic~"   # 同上，自动映射 pivot 结果的每列
+            - field: "~dynamic~"   # 自动映射 PIVOT 结果的每列
               span: 1
               repeat: true
-        source:
-          kind: sql
-          # 使用透视查询（PIVOT）：行是指标，列是设备ID
-          query: >
-            SELECT
-              metric_label,
-              MAX(CASE WHEN device_id='A001' THEN display_value END) AS "A001",
-              MAX(CASE WHEN device_id='A002' THEN display_value END) AS "A002",
-              MAX(CASE WHEN device_id='A003' THEN display_value END) AS "A003"
-            FROM device_metric_display
-            WHERE device_id IN ({device_ids})
-              AND stat_date >= '{time_range_start}'
-            GROUP BY metric_label
-            ORDER BY sort_order
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 渲染效果示意（假设 device_ids = [A001, A002, A003]）：
