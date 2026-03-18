@@ -1,6 +1,6 @@
 # 智能报告模板系统 — 设计文档
 
-> 版本：v1.0 | 日期：2026-03-10
+> 版本：v2.0 | 日期：2026-03-18
 
 ---
 
@@ -102,39 +102,91 @@ foreach:
 
 ## 五、内容节点类型系统
 
-内容节点（`content`）将**数据来源**与**呈现形式**分离为两个独立维度。
+内容节点（`content`）将**数据获取**与**呈现布局**分离为两个**平级**维度。
 
-### 5.1 两个维度
+### 5.1 内容节点结构
 
-#### `source`（数据来源）
+```
+content
+  ├── datasets[]      局部数据池（数据获取层）
+  │     ├── id          数据集唯一标识
+  │     ├── depends_on  前置依赖数据集 id 列表（构成局部 DAG）
+  │     └── source      数据来源声明
+  │
+  └── presentation    视图呈现层
+        ├── type        呈现类型
+        └── ...         类型专属字段
+```
+
+> `datasets` 与 `presentation` 在 `content` 下平级存在。`datasets` 的作用域仅限当前 `content` 节点内部，不允许跨章节引用。
+
+### 5.2 数据来源（source.kind）
+
 | `kind` | 说明 |
 |---|---|
 | `sql` | 直接执行预定义 SQL，参数作为条件或列 |
 | `nl2sql` | 自然语言描述 → LLM 生成 SQL → 执行 |
+| `ai_synthesis` | 多源上下文引用 + RAG 知识检索 + LLM 合成（用于总结性内容） |
 | 无 source | 纯静态内容，`type: text` 时使用 |
 
-#### `presentation`（呈现形式）
+### 5.3 局部 DAG 执行机制
+
+当一个 `content` 包含多个 `datasets` 时，引擎根据 `depends_on` 构建局部有向无环图（DAG）：
+
+1. 无依赖的数据集可**并发执行**
+2. 有依赖的数据集等待所有前置数据集就绪后再执行
+3. 检测到环时报错拒绝渲染
+
+```yaml
+datasets:
+  - id: "ds_metrics"          # 无依赖，立即执行
+    source: { kind: sql, ... }
+  - id: "ds_faults"           # 无依赖，与 ds_metrics 并发
+    source: { kind: sql, ... }
+  - id: "ds_summary"
+    depends_on: ["ds_metrics", "ds_faults"]  # 等待前两者
+    source: { kind: ai_synthesis, ... }
+```
+
+### 5.4 ai_synthesis 专属字段
+
+```yaml
+source:
+  kind: ai_synthesis
+  context:
+    refs: ["ds_metrics", "ds_faults"]   # 引用同 content 内已就绪的数据集
+  knowledge:                             # 知识检索（RAG）
+    query_template: "..."
+    params:
+      subject: "{device_model}"          # 主体：设备型号、关键组件
+      symptoms: "refs.ds_metrics[...]"   # 征兆：当前异常指标
+      objective: "..."                   # 目标：期望获取的回答类型
+  prompt: "..."                          # LLM 提示词模板
+```
+
+### 5.5 呈现形式（presentation.type）
+
 | `type` | 说明 |
 |---|---|
 | `text` | 纯静态段落，参数占位符直接替换 |
 | `value` | SQL 返回单一值，嵌入锚点文本的 `{$value}` 位置 |
 | `chart` | 可视化图形，`chart_type` 指定图形类型 |
 | `simple_table` | 普通二维表格 |
-| `composite_table` | 合并表头的复杂表格，需声明 `headers` 二维数组 |
+| `composite_table` | 复合表格，支持多区段、合并列、动态列（详见 [`composite_table_design.md`](./output/composite_table_design.md)） |
 
-### 5.2 合法组合矩阵
+### 5.6 合法组合矩阵
 
 | source.kind | presentation.type | 备注 |
 |---|---|---|
 | 无 | `text` | 纯静态文本 |
 | `sql` | `value` | 单值填入锚点 |
 | `sql` | `simple_table` | 标准结果集表格 |
-| `sql` | `composite_table` | 合并表头，列结构已知 |
+| `sql` / `ai_synthesis` | `composite_table` | 复合表格，数据与布局平级解耦 |
 | `sql` | `chart` | 已知维度统计图 |
 | `nl2sql` | `chart` | LLM 推断图类型 |
 | `nl2sql` | `simple_table` | LLM 查询结果表 |
 
-> `composite_table` 仅支持 `sql` 来源，因复杂表头需固定列映射，LLM 生成列不可控。
+> `composite_table` 通过 `datasets` 机制支持 `sql`、`nl2sql`、`ai_synthesis` 三种来源混合使用。
 
 ---
 
@@ -145,10 +197,13 @@ foreach:
 | `{param_id}` | 引用全局参数值 |
 | `{$varname}` | 引用 `foreach` 迭代变量当前值 |
 | `{$value}` | `presentation: value` 中引用 SQL 返回的单值 |
+| `refs.ds_id.field` | `ai_synthesis` 中引用同 content 内数据集的字段 |
 
 ---
 
 ## 七、Schema 与示例
 
 - JSON Schema：见 [`template.schema.json`](./template.schema.json)
-- 完整示例模板：见 [`example_device_health_hq.yaml`](./example_device_health_hq.yaml)
+- 完整模板示例：见 [`example_device_health_hq.yaml`](./example_device_health_hq.yaml)
+- 复合表格设计规范：见 [`composite_table_design.md`](./output/composite_table_design.md)
+- 复合表格示例集：见 [`output/examples_overview.md`](./output/examples_overview.md)
