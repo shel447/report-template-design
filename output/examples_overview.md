@@ -160,3 +160,20 @@
 │                │  水泵在振动超限时核心风险点在于转子不平衡。建议步骤：1. 检查基座      │
 │                │  螺栓... 2. 检查轴承状态...                                         │
 ```
+
+---
+
+## 示例 5：所见即所得大纲交互（Template Copilot 改写）
+
+**对应文件**：[`example_5_wysiwyg_outline.yaml`](./example_5_wysiwyg_outline.yaml)  
+**设计逻辑**：展示大纲 `outline` 层记录的用户修改，是如何被 Agent 翻译成底层的 `nl2sql` 数据集和 `chart` 展现的。
+
+### 场景与机制
+
+1. **草稿期**：系统根据 `draft_prompt` 生成了最初的纯文本结论，存入 `original_draft`。
+2. **定稿期 (Diff)**：用户在大纲界面补充了“发现漏油，加个折线图”，存入 `user_edited`。
+3. **Agent 编译重构**：
+   - Agent 识别“发现漏油”，将其作为上下文注入到原来的 `ai_synthesis` 的 Prompt 提示词中。
+   - Agent 识别“加折线图”，动态创建了一个全新的 `nl2sql` 数据集用于查询近3天数据，并在 `presentation` 中插入了一块 `chart(line)` 组件。
+
+这种将非结构化的自由文本翻译拼接为结构化 YAML/SQL 的做法，在大纲的灵活性与底层客观数据的严谨性之间找到了平衡。

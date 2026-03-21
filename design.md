@@ -67,14 +67,15 @@
 ```
 sections[]
   ├── title        章节标题（支持 {param} 占位符）
-  ├── foreach      可选，循环展开声明
+  ├── foreach      可选，循环展开声明（见 4.2）
+  ├── outline      可选，大纲预览与强意图交互层（见 4.3）
   ├── content      可选，当前节点的内容（叶节点）
   └── subsections  可选，子章节（中间节点）
 ```
 
 > 一个节点 `content` 与 `subsections` 互斥：有子章节则不直接挂内容。
 
-### 4.2 参数驱动的章节循环（foreach）
+### 4.2 参数驱动的章节循环 (foreach)
 
 当某个参数 `multi: true` 且有多个值时，可用 `foreach` 将某个章节按该参数的每个取值**重复展开**。
 
@@ -97,6 +98,19 @@ foreach:
    2.3 设备 A002 运行概况
    2.4 设备 A002 异常记录
 ```
+
+### 4.3 `outline` 所见即所得大纲与 Agent 动态编译引擎
+
+为了支持用户在正式渲染前进行大纲干预（WYSIWYG），并允许修改打破既往 SQL 限宽（例如文字要求“新增一个温度折线图”），我们在 `sections` 增加了 `outline` 模型。引擎运行时将该节点分为两个状态：
+
+1. **草稿期**：结合 `outline.draft_prompt` 和已就绪的客观事实，生成段落短文赋值给运行时的 `original_draft` 属性，下发给 Web 端供用户阅读。
+2. **定稿期 (Diff)**：用户修改文本后，端侧将修改记录在 `user_edited` 里发回后台。此时会唤醒 **“模板编译官 (Template Copilot Agent)”**。
+
+Agent 通过比较 `original_draft` -> `user_edited` 提取意图：
+- **纯文本增录**（“发现现场有漏油”）：这部分脱轨的事实，将被外挂到后续节点的 `ai_synthesis` Prompt 中作为“补充事实”。
+- **架构类/数据新增指令**（“加上个月温度曲线图”）：Agent 直接产生 AST Mutation，向当前节点的 `datasets` 凭空插入一套 `nl2sql` 获取温度源，并在 `presentation` 里插一个 `chart(line)`。
+
+这种设计通过 `nl2sql` 的兜底层，**保留了用户交互时绝对自由度**的可能。示例参考 [`example_5_wysiwyg_outline.yaml`](output/example_5_wysiwyg_outline.yaml)。
 
 ---
 
