@@ -99,9 +99,11 @@ add_rect(COL2_L,   4.3, COL_W, 14.0, ALT_BG)
 
 tree2 = """outline:
   draft_prompt: "..."
-  # [系统初版落笔留档] 
-  ★ original_draft: "当前振
-     幅 8.5, 存在风险。"
+  # [系统初版块列阵留档] 
+  ★ original_blocks:
+     - type: text
+       content: "当前振
+       幅8.5,存在风险。"
 
 
 
@@ -133,10 +135,14 @@ add_text(COL3_L,   3.2, COL_W, 0.8, "用户在界面修改后，Template Copilot
 add_rect(COL3_L,   4.3, COL_W, 14.0, ALT_BG)
 
 tree3 = """outline:
-  original_draft: "..."
-  # [用户强烈意图标注]
-  ★ user_edited: "现场查看到
-     重度漏油，请增加三日折线。"
+  original_blocks: ...
+  # [Notion式混合区块]
+  ★ user_blocks:
+     - type: text
+       content: "看重度漏油"
+     ★- type: intent
+       command: chart
+       content: "加三日折线"
 
 content:
   datasets:

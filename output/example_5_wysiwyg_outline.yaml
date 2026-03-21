@@ -9,10 +9,20 @@ outline:
   draft_prompt: "提取 ds_vibration 的结论，用一句话概括主轴承状态"
   
   # 系统首次按 draft_prompt 生成的纯客观结论
-  original_draft: "当前设备主轴承振幅为 8.5mm/s，超过 7.0 的告警阈值，存在高频振动风险。"
+  original_blocks:
+    - id: "blk_1"
+      type: "text"
+      content: "当前设备主轴承振幅为 8.5mm/s，超过 7.0 的告警阈值，存在高频振动风险。"
   
-  # 用户在 Web 界面上修改后的定稿文本
-  user_edited: "当前设备主轴承振幅为 8.5mm/s，超过 7.0 的告警阈值，**现场已发现主轴端盖漏油**。**请在文档处补充近 3 天的振动趋势折线图**。"
+  # 用户在 Web 界面上使用 Notion 化能力（/ 斜杠命令）修改后的定稿状态
+  user_blocks:
+    - id: "blk_1"
+      type: "text"
+      content: "当前设备主轴承振幅为 8.5mm/s，超过 7.0 的告警阈值，现场已发现主轴端盖漏油。"
+    - id: "blk_2"
+      type: "intent"
+      command: "chart"
+      content: "补充近 3 天的振动趋势折线图"
 
 
 # ── 引擎底层（已被 Template Copilot 动态篡改/重构的快照） ──

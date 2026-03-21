@@ -63,8 +63,11 @@ title: "3.2 主轴承运行状态分析"
 outline:
   draft_prompt: "提取 ds_vibration 的结论，用一句话概括主轴承状态"
   
-  # ★ 新增：AI 根据客观事实动态总结出的报告初稿，给用户看的底本
-  original_draft: "当前设备主轴承振幅为 8.5mm/s，超过 7.0 的告警阈值，存在高频振动风险。"
+  # ★ 新增：AI 生成的报告初稿，被解析为一个默认文本区块
+  original_blocks:
+    - id: "blk_1"
+      type: "text"
+      content: "当前设备主轴承振幅为 8.5mm/s，超过 7.0 的告警阈值，存在高频振动风险。"
 
 content:
   # (与上方阶段一完全一致，只含 2 个 dataset 和 1 个 layout)
@@ -78,19 +81,26 @@ content:
 **场景**：用户在 Web 页面上修改了大纲初稿文本，点击保存正式生成报告。由于修改既包含了“现场无中生有的新事实（漏油）”，也包含对报告排版增减的“强意图（加个折线图）”，系统触发 Template Copilot Agent 拦截了这次保存行为，生成了重构后的“终极形态”。
 
 **结构特征（Diff 核心所在）**：
-- `outline` 多出了 `user_edited`。由于与 `original_draft` 产生了不一致，证明用户修改过意图。
-- `content.datasets` 被 Agent 强行外挂了一个 `nl2sql` 数据池。
-- `content.datasets` 中原有的 prompt 被外挂了用户输入的事实。
-- `content.presentation` 多出了一个区块。
+- `outline` 收到了 `user_blocks` 数组。这里不仅包含了用户修改过的 `type: text` 区块，还包含了一个由前端使用 Notion 式 `/chart` 命令生成的 `type: intent` 具体意图区块。
+- Agent 在对比 `user_blocks` 与 `original_blocks` 后：
+  1. 发现 `blk_1` 文本被加上了一句漏油评价 -> 将其外挂给 `ai_synthesis`。
+  2. 发现新增了 `blk_2 (chart)` 意图 -> 推生出了 `nl2sql` 数据池及配套图表区块。
 
 ```yaml
 title: "3.2 主轴承运行状态分析"
 outline:
   draft_prompt: "提取 ds_vibration 的结论，用一句话概括主轴承状态"
-  original_draft: "当前设备主轴承振幅为 8.5mm/s，超过 7.0 的告警阈值，存在高频振动风险。"
+  original_blocks: [ ... ]
   
-  # ★ 新增：用户在富文本里改的最终样子
-  user_edited: "当前设备主轴承振幅为 8.5mm/s，超过 7.0 的告警阈值，现场已发现主轴端盖漏油。请在下方补充近 3 天的振动趋势折线图。"
+  # ★ 新增：用户在富文本和组件混合界面下的定稿产物
+  user_blocks:
+    - id: "blk_1"
+      type: "text"
+      content: "当前设备主轴承振幅为 8.5mm/s，现场已发现主轴端盖漏油。"
+    - id: "blk_2"
+      type: "intent"
+      command: "chart"
+      content: "补充近 3 天的振动趋势折线图"
 
 content:
   datasets:
@@ -136,7 +146,7 @@ content:
 
 | 维度 | 阶段一：纯模板态 | 阶段二：未修改草稿态 | 阶段三：用户定稿修改态 |
 |---|---|---|---|
-| **`outline` 节点** | 仅含配置指令 (`draft_prompt`) | 获得系统生成的基线 (`original_draft`) | 留存用户终稿 (`user_edited`) 供 Agent 分析差异 |
+| **`outline` 节点** | 仅含配置指令 | 获得初版区块列阵 (`original_blocks`) | 留存用户终稿的混合区块 (`user_blocks`) 供 Agent 进行结构化解析 |
 | **`datasets` (客观数据)** | 固定 SQL，静态绑定 | 固定 SQL，静态绑定 | SQL 保持不篡改，同时扩充 `nl2sql` 数据池满足增量数据意图需求 |
 | **主观诊断融合** | 纯从客观数据得出评价 | 同阶段一 | Agent 将用户的游离闲聊作为附加 Context 融合进了 `prompt` 中 |
 | **UI 呈现布局** | 原模板中定义了多少块就是多少 | 原封不动 | 动态生成了与新数据池对应的新 `section` 区块 |

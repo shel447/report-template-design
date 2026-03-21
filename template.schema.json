@@ -118,7 +118,7 @@
 
     "Outline": {
       "type": "object",
-      "description": "大纲交互层：管理用户修改前后的意图文本，供后端 Agent 进行 Diff 与重构",
+      "description": "大纲交互层：管理用户修改前后的意图区块（Notion化），供后端 Agent 进行 Diff 与重构",
       "required": ["draft_prompt"],
       "additionalProperties": false,
       "properties": {
@@ -126,13 +126,41 @@
           "type": "string",
           "description": "初始草稿生成指令，由 AI 结合上下文生成供大纲预览的摘要文本"
         },
-        "original_draft": {
-          "type": "string",
-          "description": "[运行时状态] 系统在最初渲染大纲时生成的未经修改的文本草稿"
+        "original_blocks": {
+          "type": "array",
+          "description": "[运行时状态] 系统在最初渲染大纲时生成的未经修改的 Notion 化区块列阵",
+          "items": { "$ref": "#/$defs/OutlineBlock" }
         },
-        "user_edited": {
+        "user_blocks": {
+          "type": "array",
+          "description": "[运行时状态] 用户在大纲界面上修改或添加的新意图区块列阵（文本混合指令意图）",
+          "items": { "$ref": "#/$defs/OutlineBlock" }
+        }
+      }
+    },
+
+    "OutlineBlock": {
+      "type": "object",
+      "description": "大纲内的独立编辑区块",
+      "required": ["id", "type", "content"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
           "type": "string",
-          "description": "[运行时状态] 用户在大纲界面上修改或添加的新意图文本，将与 original_draft Diff 后影响底层 content"
+          "description": "区块唯一标识符"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["text", "intent"],
+          "description": "区块类型：text 表示纯富文本段落，intent 表示使用 / 唤出的强组件意图（如添加对应图表）"
+        },
+        "command": {
+          "type": "string",
+          "description": "指令类型（如 chart, summary_table），仅当 type=intent 时有效"
+        },
+        "content": {
+          "type": "string",
+          "description": "区块内容，用于存储文本或对意图的具体自然语言描述"
         }
       }
     },
