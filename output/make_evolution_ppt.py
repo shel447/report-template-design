@@ -163,11 +163,11 @@ content:
       ★- band: "趋势图(Agent加)"
         layout: chart
         dataset_id: "ds_trend" """
-add_text(COL3_L+0.2, 4.4, COL_W-0.4, 13.5, tree3, 8.5, font=FONT_MONO)
 add_rect(COL3_L+0.3, 5.1, COL_W-0.6, 1.2, LIGHT_RED)
 add_rect(COL3_L+0.3, 9.7, COL_W-0.6, 0.6, LIGHT_RED)
 add_rect(COL3_L+0.3, 11.2, COL_W-0.6, 1.2, LIGHT_RED)
 add_rect(COL3_L+0.3, 15.6, COL_W-0.6, 1.6, LIGHT_RED)
+add_text(COL3_L+0.2, 4.4, COL_W-0.4, 13.5, tree3, 8.5, font=FONT_MONO)
 
 # 保存
 out = r"e:\code\antigravity_projects\ReportTemplate\output\outline_evolution.pptx"
