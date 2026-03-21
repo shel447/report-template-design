@@ -122,9 +122,11 @@ content:
     sections:
       # [a] 原生布局块
       - band: "诊断" ..."""
+
+# 先画背景高亮
+add_rect(COL2_L+0.3, 5.1, COL_W-0.6, 2.0, LIGHT_RED)
+# 再画代码
 add_text(COL2_L+0.2, 4.4, COL_W-0.4, 13.5, tree2, 8.5, font=FONT_MONO)
-add_rect(COL2_L+0.3, 5.5, COL_W-0.6, 1.2, LIGHT_RED)
-add_text(COL2_L+0.4, 5.6, COL_W-0.8, 1.0, "★ 新增对原始事实的客观描述备份", 7.5, color=HW_RED, bold=True)
 
 
 # ==========================================
@@ -163,10 +165,14 @@ content:
       ★- band: "趋势图(Agent加)"
         layout: chart
         dataset_id: "ds_trend" """
-add_rect(COL3_L+0.3, 5.1, COL_W-0.6, 1.2, LIGHT_RED)
-add_rect(COL3_L+0.3, 9.7, COL_W-0.6, 0.6, LIGHT_RED)
-add_rect(COL3_L+0.3, 11.2, COL_W-0.6, 1.2, LIGHT_RED)
-add_rect(COL3_L+0.3, 15.6, COL_W-0.6, 1.6, LIGHT_RED)
+
+# 绘制背景高亮块
+add_rect(COL3_L+0.3,  5.1, COL_W-0.6, 2.8, LIGHT_RED) # user_blocks 区域
+add_rect(COL3_L+0.3, 10.6, COL_W-0.6, 0.6, LIGHT_RED) # prompt 篡改区域
+add_rect(COL3_L+0.3, 11.2, COL_W-0.6, 1.2, LIGHT_RED) # nl2sql 添加区域
+add_rect(COL3_L+0.3, 14.5, COL_W-0.6, 1.4, LIGHT_RED) # chart 添加区域
+
+# 再绘制树形代码文本
 add_text(COL3_L+0.2, 4.4, COL_W-0.4, 13.5, tree3, 8.5, font=FONT_MONO)
 
 # 保存
