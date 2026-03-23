@@ -91,8 +91,8 @@
           "description": "循环展开声明"
         },
         "outline": {
-          "$ref": "#/$defs/Outline",
-          "description": "大纲预览与用户意图交互定义（运行时态）"
+          "$ref": "#/$defs/OutlineBlueprint",
+          "description": "大纲蓝图定义表（渲染前模板框架意图，作为 Agent 编译到底层 content 的输入来源）"
         },
         "content": {
           "$ref": "#/$defs/Content",
@@ -116,33 +116,16 @@
       }
     },
 
-    "Outline": {
-      "type": "object",
-      "description": "大纲交互层：管理用户修改前后的意图区块（Notion化），供后端 Agent 进行 Diff 与重构",
-      "required": ["draft_prompt"],
-      "additionalProperties": false,
-      "properties": {
-        "draft_prompt": {
-          "type": "string",
-          "description": "初始草稿生成指令，由 AI 结合上下文生成供大纲预览的摘要文本"
-        },
-        "original_blocks": {
-          "type": "array",
-          "description": "[运行时状态] 系统在最初渲染大纲时生成的未经修改的 Notion 化区块列阵",
-          "items": { "$ref": "#/$defs/OutlineBlock" }
-        },
-        "user_blocks": {
-          "type": "array",
-          "description": "[运行时状态] 用户在大纲界面上修改或添加的新意图区块列阵（文本混合指令意图）",
-          "items": { "$ref": "#/$defs/OutlineBlock" }
-        }
-      }
+    "OutlineBlueprint": {
+      "type": "array",
+      "description": "报告大纲蓝图，由若干 Notion 化的意图区块构成，作为大模型 Agent 编译底层 datasets 和 presentation 的依据",
+      "items": { "$ref": "#/$defs/OutlineBlock" }
     },
 
     "OutlineBlock": {
       "type": "object",
-      "description": "大纲内的独立编辑区块",
-      "required": ["id", "type", "content"],
+      "description": "大纲蓝图内的独立编辑区块（意图载体）",
+      "required": ["id", "type"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -151,16 +134,16 @@
         },
         "type": {
           "type": "string",
-          "enum": ["text", "intent"],
-          "description": "区块类型：text 表示纯富文本段落，intent 表示使用 / 唤出的强组件意图（如添加对应图表）"
+          "enum": ["paragraph", "metric", "chart", "table", "ai_summary"],
+          "description": "Notion 区块类型：paragraph(段落文本)、metric(内联数值, UI可限制输入)、chart(展示图表)、table(数据表格)、ai_summary(智能分析摘要)"
         },
-        "command": {
+        "intent": {
           "type": "string",
-          "description": "指令类型（如 chart, summary_table），仅当 type=intent 时有效"
+          "description": "对该区块期望包含的数据或业务意图的自然语言描述，指导 Agent 编译底层的 SQL/AI Config"
         },
         "content": {
           "type": "string",
-          "description": "区块内容，用于存储文本或对意图的具体自然语言描述"
+          "description": "仅 text 类区块有效，存储预设的静态富文本指导内容"
         }
       }
     },

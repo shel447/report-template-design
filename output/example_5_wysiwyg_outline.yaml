@@ -1,82 +1,75 @@
-# 示例 5：所见即所得大纲交互（运行时态快照）
-# 结构展示：一个处于“定稿期”的模板实例，包含了 outline 修改前后的状态，以及
-# Agent (Template Copilot) 是如何据此自动修改底层的 `datasets` 和 `presentation` 的。
+# 示例 5：大纲蓝图与单向编译架构 (WYSIWYG Blueprint Compiler)
+# 结构展示：一个处于“蓝图配置期”的模板实例，包含了 Notion 式的 outline 区块列阵。
+# 注意到这里没有任何数据库查询结果（如 8.5mm/s），大纲仅仅作为意图指令（Prompt / Intent）。
+# 以及展示 Agent (Template Copilot) 是如何通过读取大纲，精准“编译”成底层 datasets 的。
 
 title: "3.2 主轴承运行状态分析"
 
-# ── 大纲意图交互层（WYSIWYG 记录现场）──
+# ── 大纲意图交互层（WYSIWYG 蓝图来源）──
+# 此时没有连接数据库，没有任何具体数值，只有用户通过 UI 组件拖拽出的“意图结构”
 outline:
-  draft_prompt: "提取 ds_vibration 的结论，用一句话概括主轴承状态"
-  
-  # 系统首次按 draft_prompt 生成的纯客观结论
-  original_blocks:
-    - id: "blk_1"
-      type: "text"
-      content: "当前设备主轴承振幅为 8.5mm/s，超过 7.0 的告警阈值，存在高频振动风险。"
-  
-  # 用户在 Web 界面上使用 Notion 化能力（/ 斜杠命令）修改后的定稿状态
-  user_blocks:
-    - id: "blk_1"
-      type: "text"
-      content: "当前设备主轴承振幅为 8.5mm/s，超过 7.0 的告警阈值，现场已发现主轴端盖漏油。"
-    - id: "blk_2"
-      type: "intent"
-      command: "chart"
-      content: "补充近 3 天的振动趋势折线图"
+  - id: "blk_intro"
+    type: "paragraph"
+    content: "当前设备主轴承的运行基本情况如下。当前振动幅值为："
+    
+  - id: "blk_metric_vib"
+    type: "metric"
+    intent: "查询设备当前最近一次跑批的振动幅值"
+    
+  - id: "blk_ai_diag"
+    type: "ai_summary"
+    intent: "结合近期告警流水，评估轴承是否存在高频损坏风险，并注意现场已知有轻微漏油现象"
+    
+  - id: "blk_chart_trend"
+    type: "chart"
+    intent: "展示近 3 天的振动趋势折线图，用于辅助证明上述结论"
 
 
-# ── 引擎底层（已被 Template Copilot 动态篡改/重构的快照） ──
+# ── 引擎底层（Template Copilot 扫描 outline 后，单向【编译】生成的底层执行骨架） ──
+# 这部分通常对普通业务用户隐藏，是执行每月跑批时的唯一依据。
 content:
   datasets:
     
-    # 1. 原始固化的客观数据池（正常保留）
-    - id: "ds_vibration"
+    # [Agent 编译产物 1] 响应 blk_metric_vib 的明确查数意图
+    - id: "ds_metric_vib"
       source:
-        kind: sql
-        query: "SELECT val, limit FROM vibration_logs WHERE device_id = '{$device}'"
+        kind: nl2sql
+        description: "查询设备 {$device} 最近一次跑批的振动幅值"
         
-    # 2. [由 Agent 动态无中生有] 新增的数据池，专门响应用户提出的“近3天的振动趋势”
-    - id: "ds_dynamic_vib_trend_agent_injected"
+    # [Agent 编译产物 2] 响应 blk_chart_trend 的图表取数意图
+    - id: "ds_trend_chart"
       source:
         kind: nl2sql
         description: "查询设备 {$device} 最近 3 天的振动曲线历史数据"
         
-    # 3. [由 Agent 修改] 原始的 AI 合成节点，被 Agent 强行外挂了“现场漏油”的事实
+    # [Agent 编译产物 3] 响应 blk_ai_diag 的大模型评价意图
     - id: "ds_synthesis"
-      depends_on: ["ds_vibration"]
+      depends_on: ["ds_metric_vib", "ds_trend_chart"]
       source:
         kind: ai_synthesis
         context:
-          refs: ["ds_vibration"]
+          refs: ["ds_metric_vib", "ds_trend_chart"]
         knowledge:
           query_template: "针对轴承振动和漏油寻找关联故障指南"
-          params: 
-            subject: "主轴承"
-            symptoms: "振幅过高，漏油"
-        prompt: |
-          请依据测点数据评估故障。
-          【来自用户的现场补充事实，务必纳入分析逻辑：现场已发现主轴端盖漏油。】
+          params: { subject: "主轴承", symptoms: "振幅相关，漏油" }
+        prompt: "结合近期告警流水，评估轴承是否存在高频损坏风险，并注意现场已知有轻微漏油现象"
 
   presentation:
     type: composite_table
     columns: 8
     sections:
       
-      # ── 原始的简单结论呈现（原封不动） ──
+      # ── 响应组合段落意图的区块 ──
       - band: "振动诊断结论"
         layout:
           type: kv_grid
           dataset_id: "ds_synthesis"
           cols_per_row: 1
-          key_span: 2
-          value_span: 6
-          fields:
-            - key: "诊断建议"
-              col: "output"
+          # 这里的渲染器将提取 ds_metric_vib 的真实数值以及 AI 摘要组合显示
           
-      # ── [由 Agent 动态新增] 响应“折线图”诉求插入的图形展现区块区段 ──
-      - band: "近 3 天振动趋势 (基于用户意图动态扩充)"
-        dataset_id: "ds_dynamic_vib_trend_agent_injected"
+      # ── 响应 chart 意图，Agent 自动搭建的图表展示壳子 ──
+      - band: "辅助分析趋势图"
+        dataset_id: "ds_trend_chart"
         layout:
           type: chart
           chart_type: "line"

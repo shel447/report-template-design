@@ -99,18 +99,28 @@ foreach:
    2.4 设备 A002 异常记录
 ```
 
-### 4.3 `outline` 所见即所得大纲与 Agent 动态编译引擎
+### 4.3 `outline`（Notion 化大纲蓝图与单向编译）
 
-为了支持用户在正式渲染前进行大纲干预（WYSIWYG），并允许修改打破既往 SQL 限宽（例如文字要求“新增一个温度折线图”），我们在 `sections` 增加了 `outline` 模型。引擎运行时将该节点分为两个状态：
+为了支持用户在正式渲染前进行直观的高层干预（WYSIWYG），我们在 `sections` 增加了 `outline`（大纲蓝图）模型。
+**大纲的本质是“需求与模板骨架的意图表达”，而非“渲染后的数据草稿”**。
 
-1. **草稿期**：结合 `outline.draft_prompt` 和已就绪的客观事实，生成段落短文赋值给运行时的 `original_draft` 属性，下发给 Web 端供用户阅读。
-2. **定稿期 (Diff)**：用户修改文本后，端侧将修改记录在 `user_edited` 里发回后台。此时会唤醒 **“模板编译官 (Template Copilot Agent)”**。
+在编辑器前端，大纲表现为一个 **Notion 化的区块（Blocks）流**。每个区块都有明确的类型，用来限制用户的输入方式并指导后端的模板生成。
+*   `paragraph`（段落）：纯文本说明。
+*   `metric`（数值）：**内联数值占位符**。UI 上可强制限定仅能在此处填充一条单一的查数意图（例如“总稼动率”），避免用户乱填。
+*   `chart`（图表）/ `table`（表格）：块级的数据展现意图。
+*   `ai_summary`（智能摘要）：调用大模型的意图块。
 
-Agent 通过比较 `original_draft` -> `user_edited` 提取意图：
-- **纯文本增录**（“发现现场有漏油”）：这部分脱轨的事实，将被外挂到后续节点的 `ai_synthesis` Prompt 中作为“补充事实”。
-- **架构类/数据新增指令**（“加上个月温度曲线图”）：Agent 直接产生 AST Mutation，向当前节点的 `datasets` 凭空插入一套 `nl2sql` 获取温度源，并在 `presentation` 里插一个 `chart(line)`。
+#### “模板编译官” (Template Copilot) 工作流
+当用户在前端调整完这些意图 Block 后点击保存：
+1. **[蓝图提交]**：系统将纯粹由 `OutlineBlock` 组成的数组提交给后端大模型 Agent。此时尚未查库，也没有任何真实数值产生。
+2. **[意图降维编译]**：Agent (Template Copilot) 作为编译器，将这些抽象的自然语言意图，**静态翻译（编译）**成底层严谨的 JSON/YAML 配置：
+   - 将 `metric` 或 `table` 意图翻译为 `content.datasets` 下的 `nl2sql` 节点。
+   - 将 `chart` 意图同步配出 `content.presentation` 中的 `chart` 组件，并做好与 dataset_id 的绑定。
+   - 将 `ai_summary` 翻译为 `ai_synthesis` 节点。
+3. **[固化模板]**：编译后的模板被保存。
+4. **[运行时渲染]**：生产引擎 (Data Engine) 每月跑批时，拉取这个固化好的模板，连接正式数据库，拉取真实数据（如“总稼动率=85%”），生成最终报告。
 
-这种设计通过 `nl2sql` 的兜底层，**保留了用户交互时绝对自由度**的可能。示例参考 [`example_5_wysiwyg_outline.yaml`](output/example_5_wysiwyg_outline.yaml)。
+这种 `[大纲意图] -> (Agent编译) -> [严谨配置] -> (引擎运行) -> [结果报告]` 的模式，完美做到了高灵活性交互与底层数据严谨性的解耦隔离。具体可见 [`example_5_wysiwyg_outline.yaml`](output/example_5_wysiwyg_outline.yaml)。
 
 ---
 
