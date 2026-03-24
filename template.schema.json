@@ -117,33 +117,41 @@
     },
 
     "OutlineBlueprint": {
-      "type": "array",
-      "description": "报告大纲蓝图，由若干 Notion 化的意图区块构成，作为大模型 Agent 编译底层 datasets 和 presentation 的依据",
-      "items": { "$ref": "#/$defs/OutlineBlock" }
+      "type": "object",
+      "description": "报告大纲蓝图，包含带有组件占位符的富文本流（document）和对应的意图组件定义（blocks），作为大模型 Agent 编译底层配置的依据",
+      "required": ["document", "blocks"],
+      "additionalProperties": false,
+      "properties": {
+        "document": {
+          "type": "string",
+          "description": "富文本大纲连续描述，可包含对 block_id 的引用占位符（例如 '当前值为 {@metric_1}。\\n {@chart_1}'）"
+        },
+        "blocks": {
+          "type": "array",
+          "description": "对 document 中引用的占位符意图区块进行具体定义",
+          "items": { "$ref": "#/$defs/OutlineBlock" }
+        }
+      }
     },
 
     "OutlineBlock": {
       "type": "object",
-      "description": "大纲蓝图内的独立编辑区块（意图载体）",
-      "required": ["id", "type"],
+      "description": "大纲蓝图内的独立编辑区块（意图载体），对应 document 中的占位符",
+      "required": ["id", "type", "intent"],
       "additionalProperties": false,
       "properties": {
         "id": {
           "type": "string",
-          "description": "区块唯一标识符"
+          "description": "区块唯一标识符，对应 document 中的 {@id} 占位语法"
         },
         "type": {
           "type": "string",
-          "enum": ["paragraph", "metric", "chart", "table", "ai_summary"],
-          "description": "Notion 区块类型：paragraph(段落文本)、metric(内联数值, UI可限制输入)、chart(展示图表)、table(数据表格)、ai_summary(智能分析摘要)"
+          "enum": ["metric", "chart", "table", "ai_summary"],
+          "description": "Notion 区块类型：metric(内联数值, UI可限制输入)、chart(展示图表块)、table(数据表块)、ai_summary(智能分析摘要块)"
         },
         "intent": {
           "type": "string",
           "description": "对该区块期望包含的数据或业务意图的自然语言描述，指导 Agent 编译底层的 SQL/AI Config"
-        },
-        "content": {
-          "type": "string",
-          "description": "仅 text 类区块有效，存储预设的静态富文本指导内容"
         }
       }
     },

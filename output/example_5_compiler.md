@@ -15,21 +15,26 @@
 在这个环节，没有任何实际连接数据库和数据结果。
 ```yaml
 outline:
-  - id: "blk_intro"
-    type: "paragraph"
-    content: "当前设备主轴承的运行基本情况如下。当前振动幅值为："
+  document: |
+    当前设备主轴承的运行基本情况如下。当前振动幅值为：{@blk_metric_vib}。
+    综合诊断结论如下：
+    {@blk_ai_diag}
     
-  - id: "blk_metric_vib"
-    type: "metric"   # ⬅️ 在 UI 上强约束占位符
-    intent: "查询设备当前最近一次跑批的振动幅值"
+    【附录】近期辅助分析趋势图：
+    {@blk_chart_trend}
     
-  - id: "blk_ai_diag"
-    type: "ai_summary" # ⬅️ 生成摘要区块
-    intent: "结合近期告警流水，评估轴承是否存在高频损坏风险，并注意现场已知有轻微漏油现象"
-    
-  - id: "blk_chart_trend"
-    type: "chart"    # ⬅️ 图形意图
-    intent: "展示近 3 天的振动趋势折线图，用于辅助证明上述结论"
+  blocks:
+    - id: "blk_metric_vib"
+      type: "metric"   # ⬅️ 在 UI 上强约束占位符
+      intent: "查询设备当前最近一次跑批的振动幅值"
+      
+    - id: "blk_ai_diag"
+      type: "ai_summary" # ⬅️ 生成摘要区块
+      intent: "结合近期告警流水，评估轴承是否存在高频损坏风险，并注意现场已知有轻微漏油现象"
+      
+    - id: "blk_chart_trend"
+      type: "chart"    # ⬅️ 图形意图
+      intent: "展示近 3 天的振动趋势折线图，用于辅助证明上述结论"
 ```
 
 ### 二、Agent (Template Copilot) 的后台工作

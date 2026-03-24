@@ -8,21 +8,26 @@ title: "3.2 主轴承运行状态分析"
 # ── 大纲意图交互层（WYSIWYG 蓝图来源）──
 # 此时没有连接数据库，没有任何具体数值，只有用户通过 UI 组件拖拽出的“意图结构”
 outline:
-  - id: "blk_intro"
-    type: "paragraph"
-    content: "当前设备主轴承的运行基本情况如下。当前振动幅值为："
+  document: |
+    当前设备主轴承的运行基本情况如下。当前振动幅值为：{@blk_metric_vib}。
+    综合诊断结论如下：
+    {@blk_ai_diag}
     
-  - id: "blk_metric_vib"
-    type: "metric"
-    intent: "查询设备当前最近一次跑批的振动幅值"
+    【附录】近期辅助分析趋势图：
+    {@blk_chart_trend}
     
-  - id: "blk_ai_diag"
-    type: "ai_summary"
-    intent: "结合近期告警流水，评估轴承是否存在高频损坏风险，并注意现场已知有轻微漏油现象"
-    
-  - id: "blk_chart_trend"
-    type: "chart"
-    intent: "展示近 3 天的振动趋势折线图，用于辅助证明上述结论"
+  blocks:
+    - id: "blk_metric_vib"
+      type: "metric"
+      intent: "查询设备当前最近一次跑批的振动幅值"
+      
+    - id: "blk_ai_diag"
+      type: "ai_summary"
+      intent: "结合近期告警流水，评估轴承是否存在高频损坏风险，并注意现场已知有轻微漏油现象"
+      
+    - id: "blk_chart_trend"
+      type: "chart"
+      intent: "展示近 3 天的振动趋势折线图，用于辅助证明上述结论"
 
 
 # ── 引擎底层（Template Copilot 扫描 outline 后，单向【编译】生成的底层执行骨架） ──
