@@ -117,6 +117,9 @@ tree1 = """[Template Root]
       ├── foreach: object
       │    ├── param: string    (绑定的已收集多值参数)
       │    └── as: string       (迭代变量名 {$varname})
+      ├── outline: object       (★ v2.0 参数化意图蓝图)
+      │    ├── document: string (带 {@id} 插槽的连贯意图文本)
+      │    └── blocks[]: array  (定义占位符为 threshold/operator 等参数)
       ├── subsections[]: array  (子章节嵌套)
       │    └── ...
       └── content: object       (章节叶子节点)
