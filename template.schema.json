@@ -136,8 +136,8 @@
 
     "OutlineBlock": {
       "type": "object",
-      "description": "大纲蓝图内的独立编辑区块（意图载体），对应 document 中的占位符",
-      "required": ["id", "type", "intent"],
+      "description": "大纲意图中的可变参数区块，对应 document 中的 {@id} 占位符。用于参数化意图描述，而非规定最终报告的展现形式。",
+      "required": ["id", "type"],
       "additionalProperties": false,
       "properties": {
         "id": {
@@ -146,12 +146,16 @@
         },
         "type": {
           "type": "string",
-          "enum": ["metric", "chart", "table", "ai_summary"],
-          "description": "Notion 区块类型：metric(内联数值, UI可限制输入)、chart(展示图表块)、table(数据表块)、ai_summary(智能分析摘要块)"
+          "enum": ["indicator", "time_range", "scope", "free_text", "param_ref"],
+          "description": "意图参数类型：indicator(指标选择)、time_range(时间范围)、scope(设备/资产范围)、free_text(补充性自由文本,如现场观察)、param_ref(引用全局参数)"
         },
-        "intent": {
+        "hint": {
           "type": "string",
-          "description": "对该区块期望包含的数据或业务意图的自然语言描述，指导 Agent 编译底层的 SQL/AI Config"
+          "description": "面向用户的 UI 提示语，说明该参数的作用和填写范围"
+        },
+        "default": {
+          "type": "string",
+          "description": "模板设计时预设的默认值（可由用户在大纲编辑时覆盖）"
         }
       }
     },

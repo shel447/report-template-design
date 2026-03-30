@@ -1,80 +1,91 @@
 # 示例 5：大纲蓝图与单向编译架构 (WYSIWYG Blueprint Compiler)
-# 结构展示：一个处于“蓝图配置期”的模板实例，包含了 Notion 式的 outline 区块列阵。
-# 注意到这里没有任何数据库查询结果（如 8.5mm/s），大纲仅仅作为意图指令（Prompt / Intent）。
-# 以及展示 Agent (Template Copilot) 是如何通过读取大纲，精准“编译”成底层 datasets 的。
+#
+# 核心原则：
+#   大纲整体就是一段"意图描述"，block 是意图中可变的参数化部分。
+#   block 的 type 描述的是"意图的参数类型"（选哪个指标、看什么时间段），
+#   而不是"最终报告的展现形式"（图表还是表格）。
+#   最终报告如何展现，由 Agent 编译时根据整体意图自主决策。
 
 title: "3.2 主轴承运行状态分析"
 
-# ── 大纲意图交互层（WYSIWYG 蓝图来源）──
-# 此时没有连接数据库，没有任何具体数值，只有用户通过 UI 组件拖拽出的“意图结构”
+# ══════════════════════════════════════════════════════════
+# 大纲蓝图层（用户在前端所见即所得编辑的内容）
+# ══════════════════════════════════════════════════════════
 outline:
+  # 一段连贯的意图描述，其中 {@id} 是可被用户调整的参数化插槽
   document: |
-    当前设备主轴承的运行基本情况如下。当前振动幅值为：{@blk_metric_vib}。
-    综合诊断结论如下：
-    {@blk_ai_diag}
-    
-    【附录】近期辅助分析趋势图：
-    {@blk_chart_trend}
-    
+    对设备 {@target_device} 的 {@focus_metric} 进行深度运行状态分析。
+    分析范围为 {@analysis_period}，重点关注是否存在异常波动趋势。
+    如有异常，请结合 {@supplementary_context} 给出专业诊断及维护建议。
+
+  # 意图参数定义（不涉及任何展现形式，只约束意图的变量部分）
   blocks:
-    - id: "blk_metric_vib"
-      type: "metric"
-      intent: "查询设备当前最近一次跑批的振动幅值"
+    - id: "target_device"
+      type: "param_ref"
+      hint: "指定本节分析的目标设备"
+      default: "{$device}"
       
-    - id: "blk_ai_diag"
-      type: "ai_summary"
-      intent: "结合近期告警流水，评估轴承是否存在高频损坏风险，并注意现场已知有轻微漏油现象"
+    - id: "focus_metric"
+      type: "indicator"
+      hint: "选择重点关注的监测指标（如振动、温度、压力等）"
+      default: "振动幅值"
       
-    - id: "blk_chart_trend"
-      type: "chart"
-      intent: "展示近 3 天的振动趋势折线图，用于辅助证明上述结论"
+    - id: "analysis_period"
+      type: "time_range"
+      hint: "指定分析时间跨度"
+      default: "近3天"
+      
+    - id: "supplementary_context"
+      type: "free_text"
+      hint: "补充现场观察到的已知情况（选填）"
+      default: "现场已知主轴端盖有轻微漏油现象"
 
 
-# ── 引擎底层（Template Copilot 扫描 outline 后，单向【编译】生成的底层执行骨架） ──
-# 这部分通常对普通业务用户隐藏，是执行每月跑批时的唯一依据。
+# ══════════════════════════════════════════════════════════
+# 编译产物层（Agent 读取上面的意图后，自主决策如何编译出底层结构）
+# ══════════════════════════════════════════════════════════
+# Agent 的编译推理过程：
+#   1. 读到"对...振动幅值进行深度分析" → 决定需要一个取振幅的 nl2sql 数据源
+#   2. 读到"分析范围为近3天" + "关注异常波动趋势" → 决定用折线图来展现趋势
+#   3. 读到"结合...漏油现象给出诊断" → 决定需要一个 ai_synthesis 并在 prompt 中融入漏油事实
+#   4. 自主决定用 kv_grid 展示结论 + chart 展示趋势的组合排版
 content:
   datasets:
-    
-    # [Agent 编译产物 1] 响应 blk_metric_vib 的明确查数意图
-    - id: "ds_metric_vib"
+    - id: "ds_vibration_current"
       source:
         kind: nl2sql
         description: "查询设备 {$device} 最近一次跑批的振动幅值"
         
-    # [Agent 编译产物 2] 响应 blk_chart_trend 的图表取数意图
-    - id: "ds_trend_chart"
+    - id: "ds_vibration_trend"
       source:
         kind: nl2sql
-        description: "查询设备 {$device} 最近 3 天的振动曲线历史数据"
+        description: "查询设备 {$device} 近 3 天的振动幅值历史数据（按天聚合）"
         
-    # [Agent 编译产物 3] 响应 blk_ai_diag 的大模型评价意图
-    - id: "ds_synthesis"
-      depends_on: ["ds_metric_vib", "ds_trend_chart"]
+    - id: "ds_diagnosis"
+      depends_on: ["ds_vibration_current", "ds_vibration_trend"]
       source:
         kind: ai_synthesis
         context:
-          refs: ["ds_metric_vib", "ds_trend_chart"]
+          refs: ["ds_vibration_current", "ds_vibration_trend"]
         knowledge:
-          query_template: "针对轴承振动和漏油寻找关联故障指南"
-          params: { subject: "主轴承", symptoms: "振幅相关，漏油" }
-        prompt: "结合近期告警流水，评估轴承是否存在高频损坏风险，并注意现场已知有轻微漏油现象"
+          query_template: "针对轴承振动异常与漏油寻找关联故障指南"
+          params: { subject: "主轴承", symptoms: "振幅异常，漏油" }
+        prompt: |
+          对设备主轴承的振动幅值进行深度分析，重点关注近3天的异常波动趋势。
+          现场补充信息：主轴端盖有轻微漏油现象。请结合以上情况给出专业诊断及维护建议。
 
   presentation:
     type: composite_table
     columns: 8
     sections:
-      
-      # ── 响应组合段落意图的区块 ──
       - band: "振动诊断结论"
         layout:
           type: kv_grid
-          dataset_id: "ds_synthesis"
+          dataset_id: "ds_diagnosis"
           cols_per_row: 1
-          # 这里的渲染器将提取 ds_metric_vib 的真实数值以及 AI 摘要组合显示
-          
-      # ── 响应 chart 意图，Agent 自动搭建的图表展示壳子 ──
-      - band: "辅助分析趋势图"
-        dataset_id: "ds_trend_chart"
+
+      - band: "近期振动趋势"
+        dataset_id: "ds_vibration_trend"
         layout:
           type: chart
           chart_type: "line"
