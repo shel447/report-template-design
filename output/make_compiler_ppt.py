@@ -64,16 +64,13 @@ tree1 = """outline:
     对设备 {@target_device} 的
     {@focus_metric} 进行深度分析。
     分析范围为 {@analysis_period}。
+    重点关注是否 {@cmp} {@thres}。
     如有异常,请结合
     {@supplementary_context}
     给出专业诊断建议。
     
   # [意图的可变参数]
   blocks:
-    - id: "target_device"
-      type: "param_ref"
-      default: "{$device}"
-      
     - id: "focus_metric"
       type: "indicator"
       default: "振动幅值"
@@ -82,15 +79,19 @@ tree1 = """outline:
       type: "time_range"
       default: "近3天"
       
-    - id: "supplementary_context"
-      type: "free_text"
-      default: "端盖有轻微漏油" """
+    - id: "cmp"
+      type: "operator"
+      default: "大于"
+
+    - id: "thres"
+      type: "threshold"
+      default: "8.5mm/s" """
 
 # 先画参数高亮背景
-add_rect(1.3,  8.7, 11.4, 1.1, LIGHT_BLU)
-add_rect(1.3, 10.5, 11.4, 1.1, LIGHT_BLU)
-add_rect(1.3, 12.3, 11.4, 1.1, LIGHT_BLU)
-add_rect(1.3, 14.1, 11.4, 1.1, LIGHT_BLU)
+add_rect(1.3,  9.3, 11.4, 0.9, LIGHT_BLU)
+add_rect(1.3, 10.5, 11.4, 0.9, LIGHT_BLU)
+add_rect(1.3, 11.7, 11.4, 0.9, LIGHT_BLU)
+add_rect(1.3, 13.0, 11.4, 0.9, LIGHT_BLU)
 # 再画代码文本
 add_text(1.2, 4.4, 11.6, 13.5, tree1, 8.5, font=FONT_MONO)
 

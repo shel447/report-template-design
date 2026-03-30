@@ -146,8 +146,8 @@
         },
         "type": {
           "type": "string",
-          "enum": ["indicator", "time_range", "scope", "free_text", "param_ref"],
-          "description": "意图参数类型：indicator(指标选择)、time_range(时间范围)、scope(设备/资产范围)、free_text(补充性自由文本,如现场观察)、param_ref(引用全局参数)"
+          "enum": ["indicator", "time_range", "scope", "threshold", "operator", "enum_select", "number", "boolean", "free_text", "param_ref"],
+          "description": "意图参数类型：indicator(指标选择)、time_range(时间跨度)、scope(空间范围)、threshold(设定阈值,如80%)、operator(操作符,如大于/小于)、enum_select(通用枚举选择)、number(纯数值)、boolean(开关量)、free_text(自由文本)、param_ref(全局参数)"
         },
         "hint": {
           "type": "string",

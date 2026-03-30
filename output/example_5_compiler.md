@@ -18,7 +18,7 @@ outline:
   # 一句连贯的意图描述，{@...} 是用户可以调整的参数化插槽
   document: |
     对设备 {@target_device} 的 {@focus_metric} 进行深度运行状态分析。
-    分析范围为 {@analysis_period}，重点关注是否存在异常波动趋势。
+    分析范围为 {@analysis_period}，重点关注是否存在 {@cmp_operator} {@warn_threshold} 的异常波动趋势。
     如有异常，请结合 {@supplementary_context} 给出专业诊断及维护建议。
 
   # 意图参数定义（不涉及任何展现形式，只约束意图的变量部分）
@@ -38,6 +38,16 @@ outline:
       hint: "指定分析时间跨度"
       default: "近3天"
       
+    - id: "cmp_operator"
+      type: "operator"           # ⬅️ 异常判断比较符
+      hint: "设定异常波动的比较方向"
+      default: "大于"
+
+    - id: "warn_threshold"
+      type: "threshold"          # ⬅️ 异常判断阈值
+      hint: "数值偏离红线"
+      default: "8.5mm/s"
+      
     - id: "supplementary_context"
       type: "free_text"          # ⬅️ 开放性补充信息
       hint: "补充现场观察到的已知情况"
@@ -47,7 +57,7 @@ outline:
 ### 二、Agent (Template Copilot) 的编译推理
 当用户保存上述参数化意图后，Agent 通读整段 `document` + 填好的参数值，**自主决策**底层实现：
 1. 读到"对...振动幅值进行深度分析" → 决定需要一个取振幅的 `nl2sql` 数据源。
-2. 读到"分析范围为近3天" + "关注异常波动趋势" → 自主判断用折线图来展现趋势最合适。
+2. 读到"分析范围为近3天" + "关注大于 8.5mm/s 的波动" → 自主判断用折线图来展现趋势最合适，且高亮红线区。
 3. 读到"结合...漏油现象给出诊断" → 决定需要一个 `ai_synthesis` 节点，并在 prompt 中融入漏油事实。
 4. 最终自主选择 kv_grid + chart 的组合排版。
 
@@ -61,7 +71,7 @@ content:
     - id: "ds_vibration_current"
       source: { kind: nl2sql, description: "查询设备当前最近一次..." }
     - id: "ds_vibration_trend"
-      source: { kind: nl2sql, description: "查询近 3 天的振动历史..." }
+      source: { kind: nl2sql, description: "查询近 3 天的振动历史，高亮超过 8.5mm/s 的点段..." }
     - id: "ds_diagnosis"
       source: { kind: ai_synthesis, prompt: "深度分析... 漏油..." }
 

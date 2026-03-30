@@ -15,7 +15,7 @@ outline:
   # 一段连贯的意图描述，其中 {@id} 是可被用户调整的参数化插槽
   document: |
     对设备 {@target_device} 的 {@focus_metric} 进行深度运行状态分析。
-    分析范围为 {@analysis_period}，重点关注是否存在异常波动趋势。
+    分析范围为 {@analysis_period}，重点关注是否存在 {@cmp_operator} {@warn_threshold} 的异常波动趋势。
     如有异常，请结合 {@supplementary_context} 给出专业诊断及维护建议。
 
   # 意图参数定义（不涉及任何展现形式，只约束意图的变量部分）
@@ -34,6 +34,16 @@ outline:
       type: "time_range"
       hint: "指定分析时间跨度"
       default: "近3天"
+
+    - id: "cmp_operator"
+      type: "operator"
+      hint: "异常判断比较符"
+      default: "大于"
+
+    - id: "warn_threshold"
+      type: "threshold"
+      hint: "异常判断阈值"
+      default: "8.5mm/s"
       
     - id: "supplementary_context"
       type: "free_text"
@@ -46,7 +56,7 @@ outline:
 # ══════════════════════════════════════════════════════════
 # Agent 的编译推理过程：
 #   1. 读到"对...振动幅值进行深度分析" → 决定需要一个取振幅的 nl2sql 数据源
-#   2. 读到"分析范围为近3天" + "关注异常波动趋势" → 决定用折线图来展现趋势
+#   2. 读到"分析范围为近3天" + "关注大于 8.5mm/s 的波动" → 决定用折线图来展现趋势，重点标出阈值线
 #   3. 读到"结合...漏油现象给出诊断" → 决定需要一个 ai_synthesis 并在 prompt 中融入漏油事实
 #   4. 自主决定用 kv_grid 展示结论 + chart 展示趋势的组合排版
 content:
@@ -59,7 +69,7 @@ content:
     - id: "ds_vibration_trend"
       source:
         kind: nl2sql
-        description: "查询设备 {$device} 近 3 天的振动幅值历史数据（按天聚合）"
+        description: "查询设备 {$device} 近 3 天的振动幅值历史数据（按天聚合），并着重标记超过 8.5mm/s 的异常数据"
         
     - id: "ds_diagnosis"
       depends_on: ["ds_vibration_current", "ds_vibration_trend"]
