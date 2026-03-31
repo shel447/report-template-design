@@ -47,6 +47,7 @@
 | `multi` | boolean | 是否允许多值，`true` 时该参数可作为 `foreach` 的来源 |
 | `options` | array | 枚举值列表，仅 `input_type: enum` 时使用 |
 | `source` | string | 动态选项来源，仅 `input_type: dynamic` 时使用 |
+| `interaction_mode` | enum | **与对话系统的交互模式**，默认为 `form`。决定追问该参数的方式：`form` 为弹出结构化卡片或组件；`chat` 为不展示组件，纯语言多轮追问提取 |
 
 ### `input_type` 枚举
 

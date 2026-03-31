@@ -6,6 +6,15 @@
 #   而不是"最终报告的展现形式"（图表还是表格）。
 #   最终报告如何展现，由 Agent 编译时根据整体意图自主决策。
 
+parameters:
+  - id: "device"
+    label: "目标设备"
+    required: true
+    input_type: "dynamic"
+    multi: false
+    source: "api/v1/devices/search"
+    interaction_mode: "chat"   # ⬅️ 当基于对话生成报告时，完全使用自然语言进行追问（例如：“好的，请问您想分析哪个厂区的那台设备？”）而不仅是弹出卡片
+
 title: "3.2 主轴承运行状态分析"
 
 # ══════════════════════════════════════════════════════════

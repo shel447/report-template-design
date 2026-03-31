@@ -60,6 +60,12 @@
           "enum": ["free_text", "enum", "dynamic"],
           "description": "输入方式"
         },
+        "interaction_mode": {
+          "type": "string",
+          "enum": ["form", "chat"],
+          "default": "form",
+          "description": "配置在该模板用于对话系统时，如何向用户发起该参数的追问：form(弹出可视化表单或控件组件)、chat(完全使用自然语言进行追问与识别)"
+        },
         "multi": {
           "type": "boolean",
           "default": false,
