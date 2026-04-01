@@ -263,14 +263,14 @@ sections:
 
 ---
 
-## 场景四：基于对话生成的定时巡检报告 (麦当劳设备健康评估)
+## 场景四：基于对话生成的定时巡检报告 (麦当劳 IT 基础设施健康评估)
 
 **业务述求**：店长通过对话系统发语：“请帮我生成一份每周二的设备巡检报告”。这要求系统不仅能解析出报告对象，还能将大纲意图与 **Schedule 定时调度**、相对时间派生完美结合。
 
 ### 📌 State 0: 原始空模板
 ```yaml
 id: "tpl_mcd_equipment"
-name: "餐饮冷热链核心设备巡检"
+name: "园区核心 IT 与网络设备巡检"
 parameters:
   - id: "report_cycle"
     label: "报告周期"
@@ -293,15 +293,15 @@ parameters:
   - id: "analysis_period", value: "近一周" # 派生自调度触发时机
 
 sections:
-  - title: "后厨核心设备健康周报"
+  - title: "园区核心 IT 设施健康周报"
     outline:
       document: |
-        全面检查后厨核心设备（包含：{@dev1}、{@dev2}、{@dev3}）在 {@period} 内的健康状态。
+        全面检查园区核心设施（包含：{@dev1}、{@dev2}、{@dev3}）在 {@period} 内的健康状态。
         如有连续处于高温警告区超过 {@threshold} 的设备，请单独生成【预警维护清单】。
       blocks:
-        - id: "dev1", type: "free_text", value: "炸炉"
-        - id: "dev2", type: "free_text", value: "冷柜"
-        - id: "dev3", type: "free_text", value: "制冰机"
+        - id: "dev1", type: "free_text", value: "数通设备"
+        - id: "dev2", type: "free_text", value: "服务器"
+        - id: "dev3", type: "free_text", value: "协作设备"
         - id: "period", type: "param_ref", value: "{$analysis_period}"
         - id: "threshold", type: "threshold", value: "30分钟"
 ```
@@ -310,21 +310,21 @@ sections:
 Agent 准确识别除了常规的健康概览外，还需要一个带异常阈值的过滤表（预警维护清单）。
 ```yaml
 sections:
-  - title: "后厨核心设备健康周报"
+  - title: "园区核心 IT 设施健康周报"
     content:
       datasets:
         - id: "ds_health_overview"
-          source: { kind: sql, query: "SELECT device, avg_temp, status FROM mcd_equipment_logs WHERE device IN ('炸炉', '冷柜', '制冰机') AND time >= $T_data_start" }
+          source: { kind: sql, query: "SELECT device, avg_temp, status FROM mcd_it_infra_logs WHERE device IN ('数通设备', '服务器', '协作设备') AND time >= $T_data_start" }
         - id: "ds_warning_list"
-          source: { kind: sql, query: "SELECT device, overtemp_duration FROM mcd_equipment_logs WHERE overtemp_duration > 30 AND time >= $T_data_start" }
+          source: { kind: sql, query: "SELECT device, overtemp_duration FROM mcd_it_infra_logs WHERE overtemp_duration > 30 AND time >= $T_data_start" }
       
       presentation:
         type: composite_table
         sections:
-          - band: "核心设备健康概况"
+          - band: "核心 IT 设备健康概况"
             dataset_id: "ds_health_overview"
             layout: { type: kv_grid, cols_per_row: 3 }
-          - band: "预警维护派单 (连续高温 > 30分钟)"
+          - band: "预警维护派单 (机房连续高温 > 30分钟)"
             dataset_id: "ds_warning_list"
             layout: { type: simple_table }
 ```
