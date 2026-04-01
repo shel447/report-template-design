@@ -260,3 +260,142 @@ sections:
         sections: [{ dataset_id: "ds_flow_3", layout: { type: chart, chart_type: "line" } }]
 ```
 *(证明结果：通过参数域的 `multi` 和针对单体的 `outline`，引擎成功扩展出了可以动态缩放的自动化底层结构。即使勾选了 100 台设备，系统的开销与逻辑也仅仅是一次平滑铺开。)*
+
+---
+
+## 场景四：基于对话生成的定时巡检报告 (麦当劳设备健康评估)
+
+**业务述求**：店长通过对话系统发语：“请帮我生成一份每周二的设备巡检报告”。这要求系统不仅能解析出报告对象，还能将大纲意图与 **Schedule 定时调度**、相对时间派生完美结合。
+
+### 📌 State 0: 原始空模板
+```yaml
+id: "tpl_mcd_equipment"
+name: "餐饮冷热链核心设备巡检"
+parameters:
+  - id: "report_cycle"
+    label: "报告周期"
+    input_type: "enum"
+    options: ["每天", "每周二", "每月"]
+    interaction_mode: "chat"
+  - id: "analysis_period"
+    label: "数据回溯范围"
+    type: "time_range" 
+    derive_from: "T_biz" # ⬅️ 声明绑定至定时任务执行时的业务基准时间 (解决时间联动问题)
+    snap: "week"         # 对齐到上一个整周
+    hidden: true
+```
+
+### 📌 State 1 & State 2: 意图捕获与大纲实例化
+对话系统的 NLP 捕捉到了 `每周二` 的周期要求，准备向 Scheduler 发起定时任务注册。同时组装了针对该巡检的大纲蓝图：
+```yaml
+parameters:
+  - id: "report_cycle", value: "每周二"   # ⬅️ 触发了后台 Scheduler 注册逻辑
+  - id: "analysis_period", value: "近一周" # 派生自调度触发时机
+
+sections:
+  - title: "后厨核心设备健康周报"
+    outline:
+      document: |
+        全面检查后厨核心设备（包含：{@dev1}、{@dev2}、{@dev3}）在 {@period} 内的健康状态。
+        如有连续处于高温警告区超过 {@threshold} 的设备，请单独生成【预警维护清单】。
+      blocks:
+        - id: "dev1", type: "free_text", value: "炸炉"
+        - id: "dev2", type: "free_text", value: "冷柜"
+        - id: "dev3", type: "free_text", value: "制冰机"
+        - id: "period", type: "param_ref", value: "{$analysis_period}"
+        - id: "threshold", type: "threshold", value: "30分钟"
+```
+
+### 📌 State 3: Agent 编译底层逻辑（等待每周二跑批）
+Agent 准确识别除了常规的健康概览外，还需要一个带异常阈值的过滤表（预警维护清单）。
+```yaml
+sections:
+  - title: "后厨核心设备健康周报"
+    content:
+      datasets:
+        - id: "ds_health_overview"
+          source: { kind: sql, query: "SELECT device, avg_temp, status FROM mcd_equipment_logs WHERE device IN ('炸炉', '冷柜', '制冰机') AND time >= $T_data_start" }
+        - id: "ds_warning_list"
+          source: { kind: sql, query: "SELECT device, overtemp_duration FROM mcd_equipment_logs WHERE overtemp_duration > 30 AND time >= $T_data_start" }
+      
+      presentation:
+        type: composite_table
+        sections:
+          - band: "核心设备健康概况"
+            dataset_id: "ds_health_overview"
+            layout: { type: kv_grid, cols_per_row: 3 }
+          - band: "预警维护派单 (连续高温 > 30分钟)"
+            dataset_id: "ds_warning_list"
+            layout: { type: simple_table }
+```
+*(证明结果：不仅包含丰富多维的意图降维，且时间范围变量 `$T_data_start` 被推迟到每周二引擎跑批时，再按实际算出的相对基准 `T_biz` 现场绑定注入，实现了对话系统下达“每周二执行的定时巡检任务”的闭环过渡。)*
+
+---
+
+## 场景五：跨组织的多模块运维分析 (金拱门中国网络运行诊断)
+
+**业务述求**：IT 总监通过对话界面诉求：“请帮我生成金拱门（中国）有限公司的运维分析报告，包括雅居乐国际广场餐厅、上海体育场餐厅近一周的运维情况，内容包含网络中断情况、园区出口带宽、topN流量应用等。”
+
+### 📌 State 0: 原始网络运维空模板
+```yaml
+id: "tpl_net_op"
+name: "企业园区网络运维分析"
+parameters:
+  - id: "company"
+    label: "目标公司"
+    input_type: "free_text"
+  - id: "store_list"
+    label: "餐厅列表"
+    input_type: "dynamic"
+    multi: true         # ⬅️ 允许多值以支持多个餐厅横向比对
+```
+
+### 📌 State 1 & State 2: 超长复杂提示词下的参数与意图提取
+对话系统的 Agent 将这句超长诉求拆分为两部分：实体放入全局 Parameter 框，具体“查什么”则写入各个裂变的对应章节大纲。
+```yaml
+parameters:
+  - id: "company", value: "金拱门（中国）有限公司"
+  - id: "store_list", value: ["雅居乐国际广场餐厅", "上海体育场餐厅"]
+
+sections:
+  - title: "{$company} - 门店网络状况"
+    foreach: { param: "store_list", as: "store" } # 检测到多个门店实体，自动进入裂变体系
+    outline:
+      document: |
+        分析门店 {@store_name} 近一周的网络运维情况。
+        核心版块必须包含：1. {@m1}情况； 2. {@m2}走势； 3. {@m3}排名。
+      blocks:
+        - id: "store_name", type: "param_ref", value: "{$store}"
+        - id: "m1", type: "indicator", value: "网络中断"
+        - id: "m2", type: "indicator", value: "园区出口带宽"
+        - id: "m3", type: "indicator", value: "topN流量应用"
+```
+
+### 📌 State 3: 顶层宏观大纲被编译为多维度数据矩阵
+底层系统的 Compiler Agent 会针对这三大关键诉求（中断、带宽、排名），利用其常识推断并独立构建 3 个不同的 dataset，同时为其精心配置最匹配的图形渲染器组件。
+```yaml
+sections:
+  - title: "{$company} - 门店网络状况"
+    content:
+      datasets:
+        - id: "ds_interruptions"
+          source: { kind: sql, query: "SELECT count, duration_sum FROM net_alerts WHERE type='中断' AND store_id='{$store}'" }
+        - id: "ds_bandwidth"
+          source: { kind: sql, query: "SELECT time, bw_usage FROM net_metrics WHERE metric='出口带宽' AND store_id='{$store}'" }
+        - id: "ds_top_n_app"
+          source: { kind: sql, query: "SELECT app_name, bytes FROM net_flow WHERE store_id='{$store}' ORDER BY bytes DESC LIMIT 5" }
+          
+      presentation:
+        type: composite_table
+        sections:
+          - band: "可靠性：网络中断与可用性概况"
+            dataset_id: "ds_interruptions"
+            layout: { type: kv_grid, cols_per_row: 2 } # ⬅️ Agent判断：中断类概括聚合指标，适合使用大字卡片呈现
+          - band: "容量性能：园区出口带宽趋势图"
+            dataset_id: "ds_bandwidth"
+            layout: { type: chart, chart_type: "line" } # ⬅️ Agent判断：随着时间推移的带宽必须展示时序规律，使用折线图
+          - band: "应用质量：TopN 业务流量应用排名"
+            dataset_id: "ds_top_n_app"
+            layout: { type: chart, chart_type: "bar" } # ⬅️ Agent判断：TopN 类的离散实体对比排名天生适合柱状图！
+```
+*(证明结果：无论该高管在对话时的诉求包含多少个参差不齐的数据维度特征（中断是布尔与次数，带宽是曲线，排名是柱榜），大纲蓝图的作用就是将其统一“降服”为一段清爽的多插槽意图文本。而接水管的人——底层 Agent，就像组装高级工业乐高一样，非常严谨地对它们发起了分离查询，并赋予最科学合理的 UI 图展示方案。最终通过 `foreach` 实现了所有目标门店的横向大联防巡检！)*
