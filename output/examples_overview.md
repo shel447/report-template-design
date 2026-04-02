@@ -185,4 +185,9 @@
 **对应文件**：[`example_6_pipeline_evolution.md`](./example_6_pipeline_evolution.md)  
 **核心论证**：
 本文不关注具体的排版语法，重点关注**模板在系统内的 4 个状态生命周期跳转**：`State 0 (空骨架)` $\to$ `State 1 (参数就位)` $\to$ `State 2 (大纲蓝图锁定)` $\to$ `State 3 (Agent 翻译底层骨架)`。
-通过“单指标报警下钻”、“包含自由人工文本的 AI 研判”、“多维参数 foreach 循环裂变”等 3 个真实工业场景，完整证明了大纲与底层的解耦演变逻辑是完全合理与高度可伸缩的。
+## 示例 7：宏观架构演化真实体感渲染 (Rendered Mockups)
+
+**对应文件**：[`example_7_rendered_mockups.md`](./example_7_rendered_mockups.md)  
+**核心论证**：
+这是配合示例 6 的最终阶段（State 3 编译完成并由 Data Engine 执行跑批后）的**终态视觉效果模拟**。
+分别绘制了“麦当劳园区核心 IT 设施健康周报”的数据抓取预警表格，以及“金拱门多门店网络状况”基于 `foreach` 裂变产生的大量可视化图表（通过 Mermaid 展示 Line、Bar 结构与大数字卡片），让读者直接体会大纲解耦后的最终业务交付体验。
