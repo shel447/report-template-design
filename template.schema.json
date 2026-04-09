@@ -161,7 +161,25 @@
         },
         "default": {
           "type": "string",
-          "description": "模板设计时预设的默认值（可由用户在大纲编辑时覆盖）"
+          "description": "模板设计时预设的默认值（应与 value 对应，而非 label）"
+        },
+        "options": {
+          "type": "array",
+          "description": "供用户选择的选项集合，兼具 UI 显示与底层代码逻辑的映射关系",
+          "items": {
+            "type": "object",
+            "required": ["label", "value"],
+            "properties": {
+              "label": {
+                "type": "string",
+                "description": "在蓝图上展示给用户看的人类可读语义翻译 (例如 '大于'、'出口压力')"
+              },
+              "value": {
+                "type": "string",
+                "description": "在交给后端组装 SQL 或表达式时使用的程序化机器码 (例如 '>', 'pressure_out')"
+              }
+            }
+          }
         }
       }
     },

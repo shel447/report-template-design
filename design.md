@@ -119,6 +119,18 @@ foreach:
 *   `free_text`（自由文本）：允许用户补充现场观察等开放文字。
 *   `param_ref`（参数引用）：直接引用模板内挂载的全局参数（如 `{$device}`）。
 
+#### 表里不一的映射护栏 (`options`)
+针对能够供用户“选择”的交互组件（如 `indicator`, `operator`, `enum_select` 等），大纲层可以配置 `options` 进行严格的表里映射。
+这样做的好处是，**用户看到的是易于理解的人话，而 Agent / 引擎拿到的永远是毫无歧义的物理字段名**，杜绝大模型在字段名上产生幻觉：
+```yaml
+- id: "metric"
+  type: "indicator"
+  value: "pressure_out" # 此处存储向底层传控的键值
+  options:
+    - { label: "出口压力", value: "pressure_out" }
+    - { label: "机柜温度", value: "temp_body" }
+```
+
 > **关键区分**：block 描述的是"意图的变量部分"，而不是"最终报告放什么图表"。至于报告最终用折线图还是表格来展示——那是 Agent 编译时根据整体意图自主决策的事情。
 
 举个例子，用户看到的大纲是这样一句连贯的话：

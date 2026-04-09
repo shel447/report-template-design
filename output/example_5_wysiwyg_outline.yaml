@@ -37,7 +37,10 @@ outline:
     - id: "focus_metric"
       type: "indicator"
       hint: "选择重点关注的监测指标（如振动、温度、压力等）"
-      default: "振动幅值"
+      default: "vibrate_amp" # ⬅️ 传递给底层的物理字段名
+      options:
+        - { label: "振动幅值", value: "vibrate_amp" }
+        - { label: "机壳温度", value: "temp_body" }
       
     - id: "analysis_period"
       type: "time_range"
@@ -47,7 +50,11 @@ outline:
     - id: "cmp_operator"
       type: "operator"
       hint: "异常判断比较符"
-      default: "大于"
+      default: ">"
+      options:
+        - { label: "大于", value: ">" }
+        - { label: "小于", value: "<" }
+        - { label: "等于", value: "=" }
 
     - id: "warn_threshold"
       type: "threshold"
